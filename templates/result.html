@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Result | Translator{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='css/result.css') }}" rel="stylesheet">
+<div class="container result-container">
+    <h1>🌍 Translation Result</h1>
+    <p class="subtitle">Your speech has been processed successfully</p>
+
+    <div class="result-box">
+        <h2>Original Text</h2>
+        <p>{{ original_text }}</p>
+    </div>
+
+    <div class="result-box">
+        <h2>Translated Text</h2>
+        <p>{{ translated_text }}</p>
+    </div>
+
+    <div class="result-box">
+        <h2>Translated Audio</h2>
+        {% if audio_file %}
+            <audio controls>
+                <source src="{{ url_for('static', filename='outputs/speech/' + audio_file) }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+        {% else %}
+            <p>No translated audio available.</p>
+        {% endif %}
+    </div>
+
+    <div class="button-group">
+        <a href="/" class="back-btn">⬅ Back to Home</a>
+    </div>
+</div>
+
+{% endblock %}

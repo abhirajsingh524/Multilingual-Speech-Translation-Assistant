@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Home | Translator{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+<div class="container">
+    <h1>🎤 Multilingual Speech Translator</h1>
+    <p class="subtitle">Convert speech into any language instantly</p>
+
+    <form action="/process" method="POST" enctype="multipart/form-data">
+        
+        <div class="form-group">
+            <label>Source Language</label>
+            <select name="source_lang">
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>  
+                
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Target Language</label>
+            <select name="target_lang">
+                <option value="hi">Hindi</option>
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Upload Audio</label>
+            <input type="file" name="audio">
+        </div>
+        <div class="form-group">
+    <label>Enter Text</label>
+    <textarea name="text" rows="4" placeholder="Enter text to translate"></textarea>
+</div>
+
+        <button type="submit">Translate</button>
+    </form>
+</div>
+
+{% endblock %}

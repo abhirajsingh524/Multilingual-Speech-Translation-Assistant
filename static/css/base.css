@@ -1,0 +1,44 @@
+/* Navbar */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    background: #0a0f1c;
+}
+
+.logo {
+    font-size: 20px;
+    font-weight: bold;
+    color: #00c6ff;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.nav-links li a {
+    text-decoration: none;
+    color: white;
+    transition: 0.3s;
+}
+
+.nav-links li a:hover {
+    color: #00c6ff;
+}
+
+/* Main content spacing */
+.main-content {
+    min-height: 80vh;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 15px;
+    background: #0a0f1c;
+    color: #aaa;
+    font-size: 14px;
+}
