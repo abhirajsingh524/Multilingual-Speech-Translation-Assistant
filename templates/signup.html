@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Sign Up | MSTA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+
+    <div class="auth-header">
+      <div class="auth-logo">🌐</div>
+      <h1>Create account</h1>
+      <p>Join MSTA — translate across 50+ languages</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.signup') }}" novalidate id="signup-form">
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input
+          type="text" id="username" name="username"
+          value="{{ username or '' }}"
+          placeholder="your_username"
+          required minlength="3" maxlength="30"
+          autocomplete="username">
+        <span class="field-hint">3–30 characters, letters/numbers/underscores</span>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input
+          type="email" id="email" name="email"
+          value="{{ email or '' }}"
+          placeholder="you@example.com"
+          required autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-eye-wrap">
+          <input
+            type="password" id="password" name="password"
+            placeholder="Min. 8 characters"
+            required minlength="8"
+            autocomplete="new-password">
+          <button type="button" class="eye-btn" onclick="togglePassword('password', this)" aria-label="Show password">👁</button>
+        </div>
+        <div class="password-strength" id="pw-strength"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="confirm_password">Confirm password</label>
+        <div class="input-eye-wrap">
+          <input
+            type="password" id="confirm_password" name="confirm_password"
+            placeholder="Repeat password"
+            required autocomplete="new-password">
+          <button type="button" class="eye-btn" onclick="togglePassword('confirm_password', this)" aria-label="Show password">👁</button>
+        </div>
+        <span class="field-hint" id="match-hint"></span>
+      </div>
+
+      <button type="submit" class="btn-auth" id="signup-btn">
+        <span class="btn-text">Create Account</span>
+        <span class="btn-spinner hidden">⏳</span>
+      </button>
+    </form>
+
+    <p class="auth-switch">
+      Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function togglePassword(id, btn) {
+    const input = document.getElementById(id);
+    input.type = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? '👁' : '🙈';
+  }
+
+  // Live password strength indicator
+  document.getElementById('password').addEventListener('input', function () {
+    const val = this.value;
+    const el = document.getElementById('pw-strength');
+    let strength = 0;
+    if (val.length >= 8) strength++;
+    if (/[A-Z]/.test(val)) strength++;
+    if (/[0-9]/.test(val)) strength++;
+    if (/[^A-Za-z0-9]/.test(val)) strength++;
+    const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+    const colors = ['', '#e74c3c', '#f39c12', '#2ecc71', '#27ae60'];
+    el.textContent = val ? labels[strength] : '';
+    el.style.color = colors[strength];
+  });
+
+  // Live confirm match
+  document.getElementById('confirm_password').addEventListener('input', function () {
+    const pw = document.getElementById('password').value;
+    const hint = document.getElementById('match-hint');
+    if (this.value && this.value !== pw) {
+      hint.textContent = 'Passwords do not match';
+      hint.style.color = '#e74c3c';
+    } else {
+      hint.textContent = this.value ? '✓ Passwords match' : '';
+      hint.style.color = '#2ecc71';
+    }
+  });
+
+  document.getElementById('signup-form').addEventListener('submit', function () {
+    document.querySelector('.btn-text').classList.add('hidden');
+    document.querySelector('.btn-spinner').classList.remove('hidden');
+  });
+</script>
+{% endblock %}

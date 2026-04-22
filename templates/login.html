@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Login | MSTA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+
+    <div class="auth-header">
+      <div class="auth-logo">🌐</div>
+      <h1>Welcome back</h1>
+      <p>Sign in to your MSTA account</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.login') }}" novalidate id="login-form">
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input
+          type="email" id="email" name="email"
+          value="{{ email or '' }}"
+          placeholder="you@example.com"
+          required autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-eye-wrap">
+          <input
+            type="password" id="password" name="password"
+            placeholder="••••••••"
+            required autocomplete="current-password">
+          <button type="button" class="eye-btn" onclick="togglePassword('password', this)" aria-label="Show password">👁</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-auth" id="login-btn">
+        <span class="btn-text">Sign In</span>
+        <span class="btn-spinner hidden">⏳</span>
+      </button>
+    </form>
+
+    <p class="auth-switch">
+      Demo credentials: <strong>Anoop12@gmail.com</strong> / <strong>anoop@123</strong>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function togglePassword(id, btn) {
+    const input = document.getElementById(id);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁';
+    }
+  }
+
+  document.getElementById('login-form').addEventListener('submit', function () {
+    document.querySelector('.btn-text').classList.add('hidden');
+    document.querySelector('.btn-spinner').classList.remove('hidden');
+  });
+</script>
+{% endblock %}

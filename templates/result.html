@@ -1,38 +1,69 @@
 {% extends "base.html" %}
+{% block title %}Result | MSTA{% endblock %}
 
-{% block title %}Result | Translator{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+{% endblock %}
 
 {% block content %}
-<link href="{{ url_for('static', filename='css/result.css') }}" rel="stylesheet">
-<div class="container result-container">
+<div class="result-wrapper">
+
+  <div class="result-card">
     <h1>🌍 Translation Result</h1>
-    <p class="subtitle">Your speech has been processed successfully</p>
+    <p class="result-subtitle">
+      <span class="lang-pill">{{ source_lang or '?' }} → {{ target_lang or '?' }}</span>
+      <span class="model-pill">{{ model_used or 'huggingface' }}</span>
+    </p>
 
+    <!-- Original -->
     <div class="result-box">
-        <h2>Original Text</h2>
-        <p>{{ original_text }}</p>
+      <div class="result-box-header">
+        <h2>{% if extracted_text %}Extracted Text (from audio){% else %}Original Text{% endif %}</h2>
+      </div>
+      <p class="result-text" id="original-text">{{ original_text }}</p>
     </div>
 
-    <div class="result-box">
+    <!-- Translated -->
+    <div class="result-box result-box-translated">
+      <div class="result-box-header">
         <h2>Translated Text</h2>
-        <p>{{ translated_text }}</p>
+        <button class="copy-btn" onclick="copyText('translated-text', this)" title="Copy translation">
+          📋 <span id="copy-label">Copy</span>
+        </button>
+      </div>
+      <p class="result-text" id="translated-text">{{ translated_text }}</p>
     </div>
 
+    <!-- Audio playback (speech model only) -->
+    {% if audio_filename %}
     <div class="result-box">
-        <h2>Translated Audio</h2>
-        {% if audio_file %}
-            <audio controls>
-                <source src="{{ url_for('static', filename='outputs/speech/' + audio_file) }}" type="audio/mpeg">
-                Your browser does not support the audio element.
-            </audio>
-        {% else %}
-            <p>No translated audio available.</p>
-        {% endif %}
+      <div class="result-box-header"><h2>🎵 Uploaded Audio</h2></div>
+      <audio controls style="width:100%;margin-top:8px">
+        <source src="{{ url_for('static', filename='uploads/audio/' + audio_filename) }}">
+        Your browser does not support the audio element.
+      </audio>
     </div>
+    {% endif %}
 
-    <div class="button-group">
-        <a href="/" class="back-btn">⬅ Back to Home</a>
+    <!-- Actions -->
+    <div class="result-actions">
+      <a href="{{ url_for('main.translate_page') }}" class="btn-action btn-back">⬅ Translate Again</a>
+      <a href="{{ url_for('main.dashboard') }}" class="btn-action btn-dash">🏠 Dashboard</a>
+      <a href="{{ url_for('history.history') }}" class="btn-action btn-hist">📋 View History</a>
     </div>
+  </div>
+
 </div>
+{% endblock %}
 
+{% block extra_js %}
+<script>
+  function copyText(id, btn) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.innerHTML = '✅ <span>Copied!</span>';
+      setTimeout(() => { btn.innerHTML = '📋 <span id="copy-label">Copy</span>'; }, 2000);
+    });
+  }
+</script>
 {% endblock %}

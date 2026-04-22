@@ -1,14 +1,15 @@
 {% extends "base.html" %}
+{% block title %}Translate | MSTA{% endblock %}
 
-{% block title %}Home | Translator{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% endblock %}
 
 {% block content %}
-<link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
-
 <div class="page-wrapper">
   <div class="two-col-layout">
 
-    <!-- ===================== LEFT: Form Card ===================== -->
+    <!-- ── LEFT: Translation Form ──────────────────────────────────────── -->
     <div class="card card-left">
 
       <div class="card-header">
@@ -18,7 +19,8 @@
       <p class="subtitle">Convert speech into any language instantly</p>
       <hr class="divider">
 
-      <form action="/translate" method="POST" enctype="multipart/form-data">
+      <form action="{{ url_for('translate.translate') }}" method="POST"
+            enctype="multipart/form-data" id="translate-form">
 
         <!-- Language selectors -->
         <div class="lang-row">
@@ -57,64 +59,66 @@
           </div>
         </div>
 
-        <!-- Text input -->
+        <!-- Model choice -->
         <div class="form-group">
+          <label for="model_choice">Translation model</label>
+          <select id="model_choice" name="model_choice" onchange="onModelChange(this.value)">
+            <option value="huggingface">Hugging Face Local Model</option>
+            <option value="groq">Groq LLaMA 3.3 Versatile</option>
+            <option value="speech">🎙️ Speech Model (Audio → Text → Translate)</option>
+          </select>
+        </div>
+
+        <!-- Text input (hidden when speech model is selected) -->
+        <div class="form-group" id="text-input-group">
           <label for="text-input">Enter text</label>
           <textarea id="text-input" name="text" rows="4"
             placeholder="Type or paste text to translate…"></textarea>
         </div>
 
-        <!-- Audio upload -->
-        <div class="form-group">
-          <label>Upload audio</label>
+        <!-- Audio upload — always visible, REQUIRED for speech model -->
+        <div class="form-group" id="audio-group">
+          <label id="audio-label">Upload audio <span id="audio-optional">(optional)</span></label>
           <label class="file-upload-label" for="audio-input">
             <div class="file-icon-box">🎵</div>
             <div class="file-text-info">
               <strong id="file-name">Choose audio file</strong>
-              <span>MP3, WAV, M4A · max 25 MB</span>
+              <span id="audio-hint">MP3, WAV, M4A · max 25 MB</span>
             </div>
             <input type="file" id="audio-input" name="audio" accept="audio/*">
           </label>
+          <!-- Speech model info banner (hidden by default) -->
+          <div id="speech-info" class="speech-info-box hidden">
+            🎙️ Audio will be transcribed with <strong>Whisper</strong>, then translated into your target language.
+          </div>
         </div>
 
-        <button type="submit" class="btn-translate">
+        <button type="submit" class="btn-translate" id="translate-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
-          Translate Now
+          <span class="btn-label" id="btn-label-text">Translate Now</span>
+          <span class="btn-loading hidden">Processing…</span>
         </button>
 
       </form>
     </div>
 
-    <!-- ===================== RIGHT: Features Card ===================== -->
+    <!-- ── RIGHT: Features Panel ───────────────────────────────────────── -->
     <div class="card card-right">
-
       <div class="right-header">
         <h2>🌐 About this translator</h2>
         <p>AI-powered multilingual engine — speech, text, and audio in one place.</p>
       </div>
 
       <div class="features-body">
-
-        <!-- Stats -->
         <div class="stat-row">
-          <div class="stat-box">
-            <div class="stat-num">50+</div>
-            <div class="stat-lbl">Languages</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-num">99%</div>
-            <div class="stat-lbl">Accuracy</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-num">&lt;2s</div>
-            <div class="stat-lbl">Response</div>
-          </div>
+          <div class="stat-box"><div class="stat-num">50+</div><div class="stat-lbl">Languages</div></div>
+          <div class="stat-box"><div class="stat-num">92%</div><div class="stat-lbl">Accuracy</div></div>
+          <div class="stat-box"><div class="stat-num">&lt;2s</div><div class="stat-lbl">Response</div></div>
         </div>
 
-        <!-- Key Features -->
         <p class="section-label">Key features</p>
         <div class="feature-list">
           <div class="feat-item">
@@ -134,20 +138,19 @@
           <div class="feat-item">
             <div class="feat-dot feat-purple">🔄</div>
             <div class="feat-text">
-              <strong>Auto language detection</strong>
-              <span>Not sure of the source language? The engine detects it automatically.</span>
+              <strong>Dual AI models</strong>
+              <span>Choose between local Hugging Face models or Groq's LLaMA 3.3.</span>
             </div>
           </div>
           <div class="feat-item">
             <div class="feat-dot feat-teal">📋</div>
             <div class="feat-text">
-              <strong>Copy &amp; export results</strong>
-              <span>One-click copy of translated text, or download as a .txt file.</span>
+              <strong>History saved</strong>
+              <span>Every translation is saved to your personal history for later reference.</span>
             </div>
           </div>
         </div>
 
-        <!-- Supported Languages -->
         <p class="section-label">Supported languages</p>
         <div class="lang-badges">
           <span class="badge badge-blue">🇬🇧 English</span>
@@ -162,38 +165,49 @@
           <span class="badge badge-blue">🇷🇺 Russian</span>
           <span class="badge badge-amber">+ 40 more</span>
         </div>
-
-        <!-- How it works -->
-        <p class="section-label">How it works</p>
-        <div class="how-steps">
-          <div class="step-row">
-            <div class="step-num">1</div>
-            <div class="step-body">
-              <strong>Choose your languages</strong>
-              <span>Select source and target from the dropdowns, or swap them instantly.</span>
-            </div>
-          </div>
-          <div class="step-row">
-            <div class="step-num">2</div>
-            <div class="step-body">
-              <strong>Add text or audio</strong>
-              <span>Type directly into the text box, or upload an MP3/WAV audio file.</span>
-            </div>
-          </div>
-          <div class="step-row last-step">
-            <div class="step-num">3</div>
-            <div class="step-body">
-              <strong>Hit translate</strong>
-              <span>Our AI processes speech and text in under 2 seconds, ready to copy.</span>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
 
   </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
+<script>
+  // ── Model change handler ──────────────────────────────────────────────────
+  function onModelChange(val) {
+    const isSpeech      = val === 'speech';
+    const textGroup     = document.getElementById('text-input-group');
+    const audioOptional = document.getElementById('audio-optional');
+    const speechInfo    = document.getElementById('speech-info');
+    const btnLabel      = document.getElementById('btn-label-text');
+    const audioInput    = document.getElementById('audio-input');
 
+    if (isSpeech) {
+      // Hide text box — not needed for speech mode
+      textGroup.classList.add('hidden');
+      // Mark audio as required
+      audioOptional.textContent = '(required)';
+      audioOptional.style.color = '#e74c3c';
+      audioInput.setAttribute('required', 'required');
+      speechInfo.classList.remove('hidden');
+      btnLabel.textContent = '🎙️ Transcribe & Translate';
+    } else {
+      textGroup.classList.remove('hidden');
+      audioOptional.textContent = '(optional)';
+      audioOptional.style.color = '';
+      audioInput.removeAttribute('required');
+      speechInfo.classList.add('hidden');
+      btnLabel.textContent = 'Translate Now';
+    }
+  }
+
+  // ── Loading state on submit ───────────────────────────────────────────────
+  document.getElementById('translate-form').addEventListener('submit', function () {
+    const btn = document.getElementById('translate-btn');
+    btn.disabled = true;
+    btn.querySelector('.btn-label').classList.add('hidden');
+    btn.querySelector('.btn-loading').classList.remove('hidden');
+  });
+</script>
 {% endblock %}
