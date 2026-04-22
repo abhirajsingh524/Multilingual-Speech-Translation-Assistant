@@ -1,0 +1,32 @@
+# ── Secrets — NEVER commit these ─────────────────────────────────────────────
+.env
+*.env
+.env.example
+
+# ── Python cache ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environment ───────────────────────────────────────────────────────
+venv/
+env/
+.venv/
+
+# ── Uploaded / generated audio files (temp storage) ──────────────────────────
+static/uploads/audio/*
+static/outputs/speech/*
+# Keep the folders themselves
+!static/uploads/audio/.gitkeep
+!static/outputs/speech/.gitkeep
+
+# ── ML model weights (large binary files) ────────────────────────────────────
+models/saved_models/
+
+# ── OS / editor noise ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

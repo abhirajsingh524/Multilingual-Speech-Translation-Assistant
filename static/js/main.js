@@ -1,23 +1,35 @@
+/* ── MSTA — main.js ──────────────────────────────────────────────────────── */
 
-  document.getElementById('audio-input').addEventListener('change', function () {
-    document.getElementById('file-name').textContent =
-      this.files.length ? this.files[0].name : 'Choose audio file';
+// ── Audio file name display ───────────────────────────────────────────────
+const audioInput = document.getElementById('audio-input');
+if (audioInput) {
+  audioInput.addEventListener('change', function () {
+    const label = document.getElementById('file-name');
+    if (label) {
+      label.textContent = this.files.length ? this.files[0].name : 'Choose audio file';
+    }
   });
+}
 
-  document.getElementById('swap-btn').addEventListener('click', function () {
+// ── Language swap button ──────────────────────────────────────────────────
+const swapBtn = document.getElementById('swap-btn');
+if (swapBtn) {
+  swapBtn.addEventListener('click', function () {
     const src = document.getElementById('source_lang');
     const tgt = document.getElementById('target_lang');
-    const tmp = src.value;
-    src.value = tgt.value;
-    tgt.value = tmp;
+    if (src && tgt) {
+      const tmp = src.value;
+      src.value = tgt.value;
+      tgt.value = tmp;
+    }
   });
+}
 
-  function copyResult() {
-    const text = document.querySelector('.result-text');
-    if (!text) return;
-    navigator.clipboard.writeText(text.innerText).then(() => {
-      const lbl = document.getElementById('copy-label');
-      lbl.textContent = 'Copied!';
-      setTimeout(() => lbl.textContent = 'Copy', 2000);
-    });
-  }
+// ── Auto-dismiss flash messages after 5 s ────────────────────────────────
+document.querySelectorAll('.flash').forEach(function (el) {
+  setTimeout(function () {
+    el.style.transition = 'opacity .4s';
+    el.style.opacity = '0';
+    setTimeout(function () { el.remove(); }, 400);
+  }, 5000);
+});

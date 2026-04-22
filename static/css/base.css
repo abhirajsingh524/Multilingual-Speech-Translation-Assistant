@@ -1,44 +1,139 @@
-/* Navbar */
+/* ── Base / Global styles ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue-400: #72bde8;
+  --blue-600: #196eb8;
+  --pink-400: #d97ab0;
+  --text-heading: #1c3d6e;
+  --text-muted: #8aaad4;
+  --nav-bg: #0d1b2e;
+  --nav-height: 60px;
+}
+
+html, body {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  min-height: 100vh;
+  background: linear-gradient(145deg, #dff0fb 0%, #fce4f0 55%, #ede8fc 100%);
+  color: var(--text-heading);
+}
+
+/* ── Navbar ──────────────────────────────────────────────────────────────── */
 .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 30px;
-    background: #0a0f1c;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  height: var(--nav-height);
+  background: var(--nav-bg);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,.25);
 }
 
 .logo {
-    font-size: 20px;
-    font-weight: bold;
-    color: #00c6ff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--blue-400);
+  text-decoration: none;
+  letter-spacing: -.01em;
 }
 
 .nav-links {
-    list-style: none;
-    display: flex;
-    gap: 20px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .nav-links li a {
-    text-decoration: none;
-    color: white;
-    transition: 0.3s;
+  text-decoration: none;
+  color: #c8d8ec;
+  font-size: .88rem;
+  font-weight: 500;
+  transition: color .2s;
 }
 
-.nav-links li a:hover {
-    color: #00c6ff;
+.nav-links li a:hover,
+.nav-links li a.active { color: var(--blue-400); }
+
+.nav-user {
+  color: #8aaad4;
+  font-size: .82rem;
 }
 
-/* Main content spacing */
-.main-content {
-    min-height: 80vh;
+.nav-logout {
+  background: rgba(217,122,176,.15);
+  border: 1px solid rgba(217,122,176,.35);
+  border-radius: 6px;
+  padding: .3rem .75rem;
+  color: #d97ab0 !important;
+  font-size: .82rem !important;
+  transition: background .2s !important;
+}
+.nav-logout:hover { background: rgba(217,122,176,.28) !important; }
+
+/* ── Flash messages ──────────────────────────────────────────────────────── */
+.flash-container {
+  position: fixed;
+  top: calc(var(--nav-height) + 10px);
+  right: 1rem;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 360px;
 }
 
-/* Footer */
+.flash {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: .7rem 1rem;
+  border-radius: 8px;
+  font-size: .85rem;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  animation: slideIn .25s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.flash-error   { background: #fde8e8; color: #c0392b; border-left: 4px solid #e74c3c; }
+.flash-success { background: #e8f8f0; color: #1e8449; border-left: 4px solid #2ecc71; }
+.flash-info    { background: #e8f4fd; color: #1a5276; border-left: 4px solid #3498db; }
+.flash-warning { background: #fef9e7; color: #7d6608; border-left: 4px solid #f1c40f; }
+
+.flash-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: inherit;
+  opacity: .6;
+  flex-shrink: 0;
+}
+.flash-close:hover { opacity: 1; }
+
+/* ── Main content ────────────────────────────────────────────────────────── */
+.main-content { min-height: calc(100vh - var(--nav-height) - 50px); }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
 .footer {
-    text-align: center;
-    padding: 15px;
-    background: #0a0f1c;
-    color: #aaa;
-    font-size: 14px;
+  text-align: center;
+  padding: 14px;
+  background: var(--nav-bg);
+  color: #5a7a9a;
+  font-size: .78rem;
 }
+
+/* ── Utility ─────────────────────────────────────────────────────────────── */
+.hidden { display: none !important; }

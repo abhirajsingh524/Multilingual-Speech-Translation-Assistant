@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | MSTA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrapper">
+
+  <!-- ── Welcome banner ──────────────────────────────────────────────────── -->
+  <div class="dash-banner">
+    <div class="banner-text">
+      <h1>Welcome back, {{ current_user.username }} 👋</h1>
+      <p>Ready to translate? You have <strong>{{ total }}</strong> translation{{ 's' if total != 1 else '' }} in your history.</p>
+    </div>
+    <a href="{{ url_for('main.translate_page') }}" class="btn-new-translate">
+      ✨ New Translation
+    </a>
+  </div>
+
+  <!-- ── Stats row ───────────────────────────────────────────────────────── -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon">📝</div>
+      <div class="stat-info">
+        <div class="stat-num">{{ total }}</div>
+        <div class="stat-lbl">Total Translations</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🌐</div>
+      <div class="stat-info">
+        <div class="stat-num">50+</div>
+        <div class="stat-lbl">Languages Supported</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-info">
+        <div class="stat-num">&lt;2s</div>
+        <div class="stat-lbl">Avg. Response</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Recent translations ─────────────────────────────────────────────── -->
+  <div class="dash-section">
+    <div class="section-header">
+      <h2>Recent Translations</h2>
+      <a href="{{ url_for('history.history') }}" class="view-all-link">View all →</a>
+    </div>
+
+    {% if recent %}
+      <div class="history-table-wrap">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Original</th>
+              <th>Translated</th>
+              <th>Languages</th>
+              <th>Model</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in recent %}
+            <tr>
+              <td class="text-cell">{{ entry.original_text[:60] }}{% if entry.original_text|length > 60 %}…{% endif %}</td>
+              <td class="text-cell">{{ entry.translated_text[:60] }}{% if entry.translated_text|length > 60 %}…{% endif %}</td>
+              <td><span class="lang-badge">{{ entry.source_lang }} → {{ entry.target_lang }}</span></td>
+              <td><span class="model-badge model-{{ entry.model_used }}">{{ entry.model_used }}</span></td>
+              <td class="time-cell">{{ entry.timestamp.strftime('%b %d, %H:%M') if entry.timestamp and entry.timestamp != '' else '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">🌍</div>
+        <p>No translations yet. <a href="{{ url_for('main.translate_page') }}">Start translating!</a></p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Quick translate shortcut ────────────────────────────────────────── -->
+  <div class="dash-section quick-section">
+    <h2>Quick Translate</h2>
+    <p>Jump straight into a new translation session.</p>
+    <a href="{{ url_for('main.translate_page') }}" class="btn-new-translate">Open Translator →</a>
+  </div>
+
+</div>
+{% endblock %}

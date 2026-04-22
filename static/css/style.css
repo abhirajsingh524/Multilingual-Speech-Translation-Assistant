@@ -221,6 +221,7 @@ select:hover, textarea:hover { border-color: rgba(150,195,235,.68); }
 .btn-translate:hover  { opacity: .90; transform: translateY(-2px); box-shadow: 0 7px 26px rgba(100,170,230,.38); }
 .btn-translate:active { transform: scale(.98); }
 .btn-translate svg { width: 17px; height: 17px; flex-shrink: 0; }
+.btn-translate .btn-loading { font-size: .9rem; }
 
 /* ---------- Inline Result Section ---------- */
 .result-section {
@@ -286,20 +287,35 @@ select:hover, textarea:hover { border-color: rgba(150,195,235,.68); }
 .action-btn:hover { background: rgba(185,225,250,.40); border-color: var(--blue-400); }
 .action-btn svg   { width: 14px; height: 14px; flex-shrink: 0; }
 
+/* ---------- RIGHT: Card ---------- */
+.card-right {
+  background: var(--white-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xl);
+  padding: 2.25rem 2rem 2rem;
+  box-shadow: var(--shadow-card);
+  animation: slideUp .55s .08s cubic-bezier(.22,1,.36,1) both;
+}
+
 /* ---------- RIGHT: Plain Features Panel ---------- */
 .features-panel {
   padding-top: .25rem;
   animation: slideUp .55s .08s cubic-bezier(.22,1,.36,1) both;
 }
 
-.panel-header { margin-bottom: 1.5rem; }
+/* alias used in index.html */
+.right-header, .panel-header { margin-bottom: 1.5rem; }
 
+.right-header h2,
 .panel-header h2 {
   font-size: 1.05rem; font-weight: 600;
   color: var(--text-heading);
   margin-bottom: .3rem;
 }
 
+.right-header p,
 .panel-header p {
   font-size: .8rem;
   color: var(--purple-400);
@@ -407,4 +423,16 @@ select:hover, textarea:hover { border-color: rgba(150,195,235,.68); }
   .lang-row  { grid-template-columns: 1fr; gap: 0; }
   .swap-col  { padding: 8px 0; justify-content: flex-start; }
   .swap-btn  { transform: rotate(90deg); }
+}
+
+/* ── Speech model info banner ────────────────────────────────────────────── */
+.speech-info-box {
+  margin-top: 8px;
+  padding: .55rem .85rem;
+  background: rgba(114,189,232,.12);
+  border: 1px solid rgba(114,189,232,.35);
+  border-radius: 9px;
+  font-size: .78rem;
+  color: #196eb8;
+  line-height: 1.5;
 }
