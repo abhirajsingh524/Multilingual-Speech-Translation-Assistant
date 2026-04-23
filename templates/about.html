@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}About — MSTA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/marketing.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="marketing-page">
+  <header class="marketing-hero">
+    <p class="hero-kicker">About MSTA</p>
+    <h1>We make global communication feel instant.</h1>
+    <p class="hero-subtext">MSTA helps teams, creators, and businesses translate voice and text across languages with speed, clarity, and confidence.</p>
+  </header>
+
+  <section class="glass-panel">
+    <h2>Our Story</h2>
+    <p>What started as a student prototype became a practical translation workspace focused on reliable output, simple workflows, and clean UX. We built MSTA to remove language friction in everyday communication.</p>
+  </section>
+
+  <section class="value-grid">
+    <article class="value-card">
+      <h3>Mission</h3>
+      <p>Enable anyone to understand and be understood in any language.</p>
+    </article>
+    <article class="value-card">
+      <h3>Vision</h3>
+      <p>Build the most accessible multilingual assistant for modern teams.</p>
+    </article>
+    <article class="value-card">
+      <h3>Values</h3>
+      <p>Trust, speed, clarity, and human-centered product design.</p>
+    </article>
+  </section>
+
+  <section class="team-section">
+    <h2>Team</h2>
+    <div class="team-grid">
+      <article class="team-card">
+        <div class="avatar">PM</div>
+        <h4>Product Team</h4>
+        <p>Designing translation workflows that feel effortless.</p>
+      </article>
+      <article class="team-card">
+        <div class="avatar">AI</div>
+        <h4>AI Engineers</h4>
+        <p>Improving accuracy, speed, and multilingual coverage.</p>
+      </article>
+      <article class="team-card">
+        <div class="avatar">FE</div>
+        <h4>Frontend Team</h4>
+        <p>Crafting premium interfaces with clear usability.</p>
+      </article>
+    </div>
+  </section>
+</section>
+{% endblock %}

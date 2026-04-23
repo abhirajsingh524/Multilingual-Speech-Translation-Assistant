@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}History | MSTA{% endblock %}
+{% block title %}History — MSTA{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
@@ -8,28 +8,32 @@
 {% block content %}
 <div class="dash-wrapper">
 
-  <div class="section-header" style="margin-bottom:1.5rem">
-    <h1 style="font-size:1.4rem;color:var(--text-heading)">Translation History</h1>
+  <!-- Page header -->
+  <div class="page-header">
+    <h1>Translation History</h1>
     {% if entries %}
     <form method="POST" action="{{ url_for('history.clear_history') }}"
-          onsubmit="return confirm('Clear all history?')">
-      <button type="submit" class="btn-danger">🗑 Clear All</button>
+          onsubmit="return confirm('Clear all history? This action cannot be undone.')">
+      <button type="submit" class="btn-danger">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Clear All
+      </button>
     </form>
     {% endif %}
   </div>
 
   {% if entries %}
     <div class="history-table-wrap">
-      <table class="history-table">
+      <table class="history-table" aria-label="Translation history — {{ entries|length }} entries">
         <thead>
           <tr>
-            <th>Original</th>
-            <th>Translated</th>
-            <th>Languages</th>
-            <th>Model</th>
-            <th>Audio</th>
-            <th>Time</th>
-            <th></th>
+            <th scope="col">Original</th>
+            <th scope="col">Translated</th>
+            <th scope="col">Languages</th>
+            <th scope="col">Model</th>
+            <th scope="col">Audio</th>
+            <th scope="col">Time</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
@@ -41,24 +45,34 @@
             <td class="text-cell" title="{{ entry.translated_text }}">
               {{ entry.translated_text[:80] }}{% if entry.translated_text|length > 80 %}…{% endif %}
             </td>
-            <td><span class="lang-badge">{{ entry.source_lang }} → {{ entry.target_lang }}</span></td>
-            <td><span class="model-badge model-{{ entry.model_used }}">{{ entry.model_used }}</span></td>
+            <td>
+              <span class="lang-badge">{{ entry.source_lang }} → {{ entry.target_lang }}</span>
+            </td>
+            <td>
+              <span class="model-badge model-{{ entry.model_used }}">{{ entry.model_used }}</span>
+            </td>
             <td>
               {% if entry.audio_filename %}
-                <audio controls style="width:140px;height:28px">
+                <audio controls style="width:140px;height:28px" aria-label="Audio recording for this translation">
                   <source src="{{ url_for('static', filename='uploads/audio/' + entry.audio_filename) }}">
                 </audio>
               {% else %}
-                <span style="color:#aaa;font-size:.75rem">—</span>
+                <span style="color:var(--text-muted);font-size:.75rem" aria-label="No audio">—</span>
               {% endif %}
             </td>
             <td class="time-cell">
-              {{ entry.timestamp.strftime('%b %d %Y, %H:%M') if entry.timestamp and entry.timestamp != '' else '—' }}
+              <time>{{ entry.timestamp.strftime('%b %d %Y, %H:%M') if entry.timestamp and entry.timestamp != '' else '—' }}</time>
             </td>
             <td>
-              <form method="POST" action="{{ url_for('history.delete_entry', entry_id=entry.id) }}"
-                    onsubmit="return confirm('Delete this entry?')">
-                <button type="submit" class="btn-icon-delete" title="Delete">🗑</button>
+              <form method="POST"
+                    action="{{ url_for('history.delete_entry', entry_id=entry.id) }}"
+                    onsubmit="return confirm('Delete this translation entry?')">
+                <button
+                  type="submit"
+                  class="btn-icon-delete"
+                  aria-label="Delete translation from {{ entry.timestamp.strftime('%b %d') if entry.timestamp and entry.timestamp != '' else 'unknown date' }}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                </button>
               </form>
             </td>
           </tr>
@@ -68,8 +82,10 @@
     </div>
   {% else %}
     <div class="empty-state">
-      <div class="empty-icon">📭</div>
-      <p>No history yet. <a href="{{ url_for('main.translate_page') }}">Make your first translation!</a></p>
+      <div class="empty-icon" aria-hidden="true">📭</div>
+      <p>No history yet.<br>
+        <a href="{{ url_for('main.translate_page') }}">Make your first translation</a>
+      </p>
     </div>
   {% endif %}
 

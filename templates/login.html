@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Login | MSTA{% endblock %}
+{% block title %}Sign In — MSTA{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
@@ -9,63 +9,97 @@
 <div class="auth-wrapper">
   <div class="auth-card">
 
+    <!-- Header -->
     <div class="auth-header">
-      <div class="auth-logo">🌐</div>
+      <div class="auth-logo" aria-hidden="true">🌐</div>
       <h1>Welcome back</h1>
-      <p>Sign in to your MSTA account</p>
+      <p>Sign in to your MSTA account to continue</p>
     </div>
 
+    <!-- Login form -->
     <form method="POST" action="{{ url_for('auth.login') }}" novalidate id="login-form">
+
       <div class="form-group">
         <label for="email">Email address</label>
         <input
-          type="email" id="email" name="email"
+          type="email"
+          id="email"
+          name="email"
           value="{{ email or '' }}"
           placeholder="you@example.com"
-          required autocomplete="email">
+          required
+          autocomplete="email"
+          aria-required="true"
+          spellcheck="false"
+          autocapitalize="none">
       </div>
 
       <div class="form-group">
         <label for="password">Password</label>
         <div class="input-eye-wrap">
           <input
-            type="password" id="password" name="password"
-            placeholder="••••••••"
-            required autocomplete="current-password">
-          <button type="button" class="eye-btn" onclick="togglePassword('password', this)" aria-label="Show password">👁</button>
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Enter your password"
+            required
+            autocomplete="current-password"
+            aria-required="true">
+          <button
+            type="button"
+            class="eye-btn"
+            onclick="togglePassword('password', this)"
+            aria-label="Show password">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
         </div>
       </div>
 
       <button type="submit" class="btn-auth" id="login-btn">
         <span class="btn-text">Sign In</span>
-        <span class="btn-spinner hidden">⏳</span>
+        <span class="btn-spinner hidden" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="animation:spin 600ms linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        </span>
       </button>
+
     </form>
 
-    <p class="auth-switch">
-      Demo credentials: <strong>Anoop12@gmail.com</strong> / <strong>anoop@123</strong>
-    </p>
+    <!-- Demo credentials -->
+    <div class="auth-divider">Demo credentials</div>
+    <div class="demo-creds">
+      <strong>Anoop12@gmail.com</strong> &nbsp;/&nbsp; <strong>anoop@123</strong>
+    </div>
+
+    <div class="auth-divider">Or continue with</div>
+    <div class="social-auth-row">
+      <button type="button" class="social-btn" aria-label="Continue with Google">Google</button>
+      <button type="button" class="social-btn" aria-label="Continue with GitHub">GitHub</button>
+    </div>
 
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 <script>
   function togglePassword(id, btn) {
     const input = document.getElementById(id);
-    if (input.type === 'password') {
-      input.type = 'text';
-      btn.textContent = '🙈';
-    } else {
-      input.type = 'password';
-      btn.textContent = '👁';
-    }
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+    btn.innerHTML = isHidden
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   }
 
   document.getElementById('login-form').addEventListener('submit', function () {
-    document.querySelector('.btn-text').classList.add('hidden');
-    document.querySelector('.btn-spinner').classList.remove('hidden');
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true;
+    btn.querySelector('.btn-text').classList.add('hidden');
+    btn.querySelector('.btn-spinner').classList.remove('hidden');
   });
 </script>
 {% endblock %}

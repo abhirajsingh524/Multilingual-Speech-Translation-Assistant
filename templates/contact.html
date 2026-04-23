@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Contact — MSTA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/marketing.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="marketing-page">
+  <header class="marketing-hero">
+    <p class="hero-kicker">Contact</p>
+    <h1>Tell us what you are building.</h1>
+    <p class="hero-subtext">Need custom language support or product help? Send us a message and we will get back quickly.</p>
+  </header>
+
+  <div class="contact-layout">
+    <section class="glass-panel">
+      <h2>Send a Message</h2>
+      <form class="contact-form" action="#" method="post" onsubmit="return validateContactForm(event)" novalidate>
+        <label for="name">Full name</label>
+        <input id="name" name="name" type="text" placeholder="Your name" required>
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" placeholder="you@company.com" required>
+
+        <label for="message">Message</label>
+        <textarea id="message" name="message" rows="5" placeholder="How can we help?" required></textarea>
+
+        <p id="contact-error" class="form-error hidden" role="alert">Please complete all fields with valid details.</p>
+        <button type="submit" class="btn btn-gradient btn-lg">Send Message</button>
+      </form>
+    </section>
+
+    <aside class="glass-panel">
+      <h2>Contact Details</h2>
+      <ul class="contact-details">
+        <li><strong>Email:</strong> hello@msta.app</li>
+        <li><strong>Phone:</strong> +91 00000 00000</li>
+        <li><strong>Address:</strong> Bengaluru, India</li>
+      </ul>
+      <div class="map-placeholder" role="img" aria-label="Map placeholder for office location">
+        <span>Map Preview</span>
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function validateContactForm(event) {
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const message = document.getElementById('message').value.trim();
+    const error = document.getElementById('contact-error');
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (!name || !validEmail || !message) {
+      event.preventDefault();
+      error.classList.remove('hidden');
+      return false;
+    }
+
+    error.classList.add('hidden');
+    return true;
+  }
+</script>
+{% endblock %}

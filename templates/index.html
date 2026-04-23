@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Translate | MSTA{% endblock %}
+{% block title %}Translate — MSTA{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -9,172 +9,280 @@
 <div class="page-wrapper">
   <div class="two-col-layout">
 
-    <!-- ── LEFT: Translation Form ──────────────────────────────────────── -->
-    <div class="card card-left">
+    <!-- ═══════════════════════════════════════════════════════════════════
+         LEFT — Translation Form
+         ═══════════════════════════════════════════════════════════════════ -->
+    <section class="card card-left" aria-labelledby="translator-heading">
 
       <div class="card-header">
-        <div class="logo-icon">🎤</div>
-        <h1>Multilingual Speech Translator</h1>
+        <div class="logo-icon" aria-hidden="true">🎤</div>
+        <h1 id="translator-heading">Multilingual Speech Translator</h1>
       </div>
-      <p class="subtitle">Convert speech into any language instantly</p>
+      <p class="subtitle">Convert speech or text into any language instantly</p>
       <hr class="divider">
 
-      <form action="{{ url_for('translate.translate') }}" method="POST"
-            enctype="multipart/form-data" id="translate-form">
+      <form
+        action="{{ url_for('translate.translate') }}"
+        method="POST"
+        enctype="multipart/form-data"
+        id="translate-form"
+        novalidate>
 
-        <!-- Language selectors -->
-        <div class="lang-row">
-          <div class="form-group" style="margin-bottom:0">
-            <label for="source_lang">Source language</label>
-            <select id="source_lang" name="source_lang">
-              <option value="en">🇬🇧 English</option>
-              <option value="hi">🇮🇳 Hindi</option>
-              <option value="es">🇪🇸 Spanish</option>
-              <option value="fr">🇫🇷 French</option>
-              <option value="de">🇩🇪 German</option>
-              <option value="zh">🇨🇳 Chinese</option>
-              <option value="ar">🇸🇦 Arabic</option>
-              <option value="ja">🇯🇵 Japanese</option>
-              <option value="pt">🇵🇹 Portuguese</option>
-              <option value="ru">🇷🇺 Russian</option>
-            </select>
-          </div>
-          <div class="swap-col">
-            <button type="button" class="swap-btn" id="swap-btn" title="Swap languages">&#8644;</button>
-          </div>
-          <div class="form-group" style="margin-bottom:0">
-            <label for="target_lang">Target language</label>
-            <select id="target_lang" name="target_lang">
-              <option value="hi">🇮🇳 Hindi</option>
-              <option value="en">🇬🇧 English</option>
-              <option value="es">🇪🇸 Spanish</option>
-              <option value="fr">🇫🇷 French</option>
-              <option value="de">🇩🇪 German</option>
-              <option value="zh">🇨🇳 Chinese</option>
-              <option value="ar">🇸🇦 Arabic</option>
-              <option value="ja">🇯🇵 Japanese</option>
-              <option value="pt">🇵🇹 Portuguese</option>
-              <option value="ru">🇷🇺 Russian</option>
-            </select>
-          </div>
-        </div>
+        <!-- Language pair row -->
+        <fieldset style="border:none;padding:0;margin:0">
+          <legend class="sr-only">Language selection</legend>
+          <div class="lang-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label for="source_lang">Source language</label>
+              <select id="source_lang" name="source_lang">
+                <option value="en">🇬🇧 English</option>
+                <option value="hi">🇮🇳 Hindi</option>
+                <option value="es">🇪🇸 Spanish</option>
+                <option value="fr">🇫🇷 French</option>
+                <option value="de">🇩🇪 German</option>
+                <option value="zh">🇨🇳 Chinese</option>
+                <option value="ar">🇸🇦 Arabic</option>
+                <option value="ja">🇯🇵 Japanese</option>
+                <option value="pt">🇵🇹 Portuguese</option>
+                <option value="ru">🇷🇺 Russian</option>
+              </select>
+            </div>
 
-        <!-- Model choice -->
+            <div class="swap-col">
+              <button
+                type="button"
+                class="swap-btn"
+                id="swap-btn"
+                aria-label="Swap source and target languages">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+              </button>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0">
+              <label for="target_lang">Target language</label>
+              <select id="target_lang" name="target_lang">
+                <option value="hi">🇮🇳 Hindi</option>
+                <option value="en">🇬🇧 English</option>
+                <option value="es">🇪🇸 Spanish</option>
+                <option value="fr">🇫🇷 French</option>
+                <option value="de">🇩🇪 German</option>
+                <option value="zh">🇨🇳 Chinese</option>
+                <option value="ar">🇸🇦 Arabic</option>
+                <option value="ja">🇯🇵 Japanese</option>
+                <option value="pt">🇵🇹 Portuguese</option>
+                <option value="ru">🇷🇺 Russian</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Model selector -->
         <div class="form-group">
           <label for="model_choice">Translation model</label>
-          <select id="model_choice" name="model_choice" onchange="onModelChange(this.value)">
-            <option value="huggingface">Hugging Face Local Model</option>
-            <option value="groq">Groq LLaMA 3.3 Versatile</option>
+          <select
+            id="model_choice"
+            name="model_choice"
+            onchange="onModelChange(this.value)"
+            aria-describedby="model-desc">
+            <option value="huggingface">Hugging Face — Local Model</option>
+            <option value="groq">Groq — LLaMA 3.3 Versatile</option>
             <option value="speech">🎙️ Speech Model (Audio → Text → Translate)</option>
           </select>
+          <span class="field-hint" id="model-desc" style="display:none"></span>
         </div>
 
-        <!-- Text input (hidden when speech model is selected) -->
+        <!-- Text input -->
         <div class="form-group" id="text-input-group">
-          <label for="text-input">Enter text</label>
-          <textarea id="text-input" name="text" rows="4"
-            placeholder="Type or paste text to translate…"></textarea>
+          <label for="text-input">Text to translate</label>
+          <textarea
+            id="text-input"
+            name="text"
+            rows="4"
+            placeholder="Type or paste text here…"
+            aria-label="Text to translate"></textarea>
         </div>
 
-        <!-- Audio upload — always visible, REQUIRED for speech model -->
+        <!-- Audio upload -->
         <div class="form-group" id="audio-group">
-          <label id="audio-label">Upload audio <span id="audio-optional">(optional)</span></label>
+          <label id="audio-label">
+            Audio file
+            <span id="audio-optional" style="font-weight:400;color:var(--text-muted)">(optional)</span>
+          </label>
           <label class="file-upload-label" for="audio-input">
-            <div class="file-icon-box">🎵</div>
+            <div class="file-icon-box" aria-hidden="true">🎵</div>
             <div class="file-text-info">
               <strong id="file-name">Choose audio file</strong>
-              <span id="audio-hint">MP3, WAV, M4A · max 25 MB</span>
+              <span id="audio-hint">MP3, WAV, M4A, OGG · max 25 MB</span>
             </div>
             <input type="file" id="audio-input" name="audio" accept=".mp3,.wav,.m4a,.ogg,.flac,.webm">
+            <input
+              type="file"
+              id="audio-input"
+              name="audio"
+              accept="audio/*"
+              aria-label="Upload audio file for transcription">
           </label>
-          <!-- Speech model info banner (hidden by default) -->
-          <div id="speech-info" class="speech-info-box hidden">
-            🎙️ Audio will be transcribed with <strong>Whisper</strong>, then translated into your target language.
+
+          <!-- Speech model callout -->
+          <div id="speech-info" class="speech-info-box hidden" role="note" aria-live="polite">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Audio will be transcribed with <strong>Whisper</strong>, then translated into your target language.
           </div>
         </div>
 
+        <!-- Submit -->
         <button type="submit" class="btn-translate" id="translate-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-          <span class="btn-label" id="btn-label-text">Translate Now</span>
-          <span class="btn-loading hidden">Processing…</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span id="btn-label-text">Translate Now</span>
+          <span class="btn-loading hidden" aria-live="polite" aria-label="Processing translation">Processing</span>
         </button>
 
       </form>
-    </div>
+    </section>
 
-    <!-- ── RIGHT: Features Panel ───────────────────────────────────────── -->
-    <div class="card card-right">
+    <!-- ═══════════════════════════════════════════════════════════════════
+         RIGHT — Features Panel
+         ═══════════════════════════════════════════════════════════════════ -->
+    <aside class="card card-right" aria-label="Translator capabilities">
+
       <div class="right-header">
-        <h2>🌐 About this translator</h2>
+        <h2>About this translator</h2>
         <p>AI-powered multilingual engine — speech, text, and audio in one place.</p>
       </div>
 
-      <div class="features-body">
-        <div class="stat-row">
-          <div class="stat-box"><div class="stat-num">50+</div><div class="stat-lbl">Languages</div></div>
-          <div class="stat-box"><div class="stat-num">92%</div><div class="stat-lbl">Accuracy</div></div>
-          <div class="stat-box"><div class="stat-num">&lt;2s</div><div class="stat-lbl">Response</div></div>
+      <!-- Stats -->
+      <div class="stat-row" role="list" aria-label="Key metrics">
+        <div class="stat-box" role="listitem">
+          <div class="stat-num">50+</div>
+          <div class="stat-lbl">Languages</div>
         </div>
-
-        <p class="section-label">Key features</p>
-        <div class="feature-list">
-          <div class="feat-item">
-            <div class="feat-dot feat-blue">🎙️</div>
-            <div class="feat-text">
-              <strong>Speech-to-text recognition</strong>
-              <span>Upload any audio file and get accurate transcription before translation.</span>
-            </div>
-          </div>
-          <div class="feat-item">
-            <div class="feat-dot feat-pink">✍️</div>
-            <div class="feat-text">
-              <strong>Text translation</strong>
-              <span>Paste or type content directly — ideal for documents, messages and captions.</span>
-            </div>
-          </div>
-          <div class="feat-item">
-            <div class="feat-dot feat-purple">🔄</div>
-            <div class="feat-text">
-              <strong>Dual AI models</strong>
-              <span>Choose between local Hugging Face models or Groq's LLaMA 3.3.</span>
-            </div>
-          </div>
-          <div class="feat-item">
-            <div class="feat-dot feat-teal">📋</div>
-            <div class="feat-text">
-              <strong>History saved</strong>
-              <span>Every translation is saved to your personal history for later reference.</span>
-            </div>
-          </div>
+        <div class="stat-box" role="listitem">
+          <div class="stat-num">92%</div>
+          <div class="stat-lbl">Accuracy</div>
         </div>
-
-        <p class="section-label">Supported languages</p>
-        <div class="lang-badges">
-          <span class="badge badge-blue">🇬🇧 English</span>
-          <span class="badge badge-pink">🇮🇳 Hindi</span>
-          <span class="badge badge-purple">🇪🇸 Spanish</span>
-          <span class="badge badge-teal">🇫🇷 French</span>
-          <span class="badge badge-blue">🇩🇪 German</span>
-          <span class="badge badge-amber">🇨🇳 Chinese</span>
-          <span class="badge badge-pink">🇸🇦 Arabic</span>
-          <span class="badge badge-purple">🇯🇵 Japanese</span>
-          <span class="badge badge-teal">🇵🇹 Portuguese</span>
-          <span class="badge badge-blue">🇷🇺 Russian</span>
-          <span class="badge badge-amber">+ 40 more</span>
+        <div class="stat-box" role="listitem">
+          <div class="stat-num">&lt;2s</div>
+          <div class="stat-lbl">Response</div>
         </div>
       </div>
-    </div>
+
+      <!-- Features -->
+      <p class="section-label">Key features</p>
+      <ul class="feature-list" role="list" style="list-style:none">
+        <li class="feat-item">
+          <div class="feat-dot feat-blue" aria-hidden="true">🎙️</div>
+          <div class="feat-text">
+            <strong>Speech-to-text recognition</strong>
+            <span>Upload any audio file and get accurate transcription before translation.</span>
+          </div>
+        </li>
+        <li class="feat-item">
+          <div class="feat-dot feat-pink" aria-hidden="true">✍️</div>
+          <div class="feat-text">
+            <strong>Text translation</strong>
+            <span>Paste or type content directly — ideal for documents, messages and captions.</span>
+          </div>
+        </li>
+        <li class="feat-item">
+          <div class="feat-dot feat-purple" aria-hidden="true">🔄</div>
+          <div class="feat-text">
+            <strong>Dual AI models</strong>
+            <span>Choose between local Hugging Face models or Groq's LLaMA 3.3.</span>
+          </div>
+        </li>
+        <li class="feat-item">
+          <div class="feat-dot feat-teal" aria-hidden="true">📋</div>
+          <div class="feat-text">
+            <strong>History saved</strong>
+            <span>Every translation is saved to your personal history for later reference.</span>
+          </div>
+        </li>
+      </ul>
+
+      <!-- Language badges -->
+      <p class="section-label">Supported languages</p>
+      <div class="lang-badges" aria-label="Supported languages">
+        <span class="badge badge-blue">🇬🇧 English</span>
+        <span class="badge badge-pink">🇮🇳 Hindi</span>
+        <span class="badge badge-purple">🇪🇸 Spanish</span>
+        <span class="badge badge-teal">🇫🇷 French</span>
+        <span class="badge badge-blue">🇩🇪 German</span>
+        <span class="badge badge-amber">🇨🇳 Chinese</span>
+        <span class="badge badge-pink">🇸🇦 Arabic</span>
+        <span class="badge badge-purple">🇯🇵 Japanese</span>
+        <span class="badge badge-teal">🇵🇹 Portuguese</span>
+        <span class="badge badge-blue">🇷🇺 Russian</span>
+        <span class="badge badge-amber">+ 40 more</span>
+      </div>
+
+    </aside>
 
   </div>
+
+<section class="landing-sections">
+  <section class="hero-strip">
+    <p class="hero-kicker">AI Translation Platform</p>
+    <h2>Translate voice and text at global scale.</h2>
+    <p>Built for teams that need speed, clarity, and premium user experience in one multilingual workspace.</p>
+    <div class="hero-cta-row">
+      <a href="{{ url_for('main.translate_page') }}" class="btn btn-gradient btn-lg">Start Translating</a>
+      <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-lg">View Dashboard</a>
+    </div>
+  </section>
+
+  <section class="feature-grid">
+    <article class="feature-box">
+      <h3>Instant Speech Recognition</h3>
+      <p>Upload audio and convert speech to translated text in seconds.</p>
+    </article>
+    <article class="feature-box">
+      <h3>Dual Model Engine</h3>
+      <p>Switch between local and cloud models based on latency and quality.</p>
+    </article>
+    <article class="feature-box">
+      <h3>Personal Translation History</h3>
+      <p>Track, review, and reuse previous outputs from your dashboard.</p>
+    </article>
+  </section>
+
+  <section class="testimonial-strip">
+    <blockquote>"MSTA reduced our multilingual support turnaround by 60%."</blockquote>
+    <blockquote>"The UI feels premium and the speech mode is surprisingly fast."</blockquote>
+  </section>
+
+  <section class="pricing-preview">
+    <h3>Pricing Preview</h3>
+    <div class="pricing-grid">
+      <article class="price-card">
+        <h4>Starter</h4>
+        <p class="price">Free</p>
+        <p>Basic text translation and dashboard access.</p>
+      </article>
+      <article class="price-card highlighted">
+        <h4>Pro</h4>
+        <p class="price">$19/mo</p>
+        <p>Speech model, priority processing, and advanced history.</p>
+      </article>
+      <article class="price-card">
+        <h4>Enterprise</h4>
+        <p class="price">Custom</p>
+        <p>Team controls, SLA support, and deployment flexibility.</p>
+      </article>
+    </div>
+  </section>
+</section>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
   // ── Model change handler ──────────────────────────────────────────────────
+  const MODEL_HINTS = {
+    huggingface: 'Local model — no API key required. Best for offline use.',
+    groq:        'Cloud model — faster and more accurate. Requires Groq API key.',
+    speech:      'Transcribes audio with Whisper, then translates the result.'
+  };
+
   function onModelChange(val) {
     const isSpeech      = val === 'speech';
     const textGroup     = document.getElementById('text-input-group');
@@ -182,16 +290,19 @@
     const speechInfo    = document.getElementById('speech-info');
     const btnLabel      = document.getElementById('btn-label-text');
     const audioInput    = document.getElementById('audio-input');
+    const modelDesc     = document.getElementById('model-desc');
+
+    // Update model hint
+    modelDesc.textContent = MODEL_HINTS[val] || '';
+    modelDesc.style.display = 'block';
 
     if (isSpeech) {
-      // Hide text box — not needed for speech mode
       textGroup.classList.add('hidden');
-      // Mark audio as required
       audioOptional.textContent = '(required)';
-      audioOptional.style.color = '#e74c3c';
+      audioOptional.style.color = 'var(--error)';
       audioInput.setAttribute('required', 'required');
       speechInfo.classList.remove('hidden');
-      btnLabel.textContent = '🎙️ Transcribe & Translate';
+      btnLabel.textContent = 'Transcribe & Translate';
     } else {
       textGroup.classList.remove('hidden');
       audioOptional.textContent = '(optional)';
@@ -206,7 +317,8 @@
   document.getElementById('translate-form').addEventListener('submit', function () {
     const btn = document.getElementById('translate-btn');
     btn.disabled = true;
-    btn.querySelector('.btn-label').classList.add('hidden');
+    btn.querySelector('svg').style.display = 'none';
+    document.getElementById('btn-label-text').classList.add('hidden');
     btn.querySelector('.btn-loading').classList.remove('hidden');
   });
 </script>

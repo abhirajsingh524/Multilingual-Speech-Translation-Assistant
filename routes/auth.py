@@ -47,6 +47,18 @@ def logout():
     return redirect(url_for("auth.login"))
 
 
-# ── Signup route DISABLED (in-memory mode uses seed user only) ────────────────
-# @auth_bp.route("/signup", methods=["GET", "POST"])
-# def signup(): ...
+@auth_bp.route("/signup", methods=["GET", "POST"])
+def signup():
+    if current_user.is_authenticated:
+        return redirect(url_for("main.dashboard"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
+        flash(
+            "Signup is currently disabled in demo mode. Please use the demo account to continue.",
+            "info",
+        )
+        return render_template("signup.html", username=username, email=email)
+
+    return render_template("signup.html")

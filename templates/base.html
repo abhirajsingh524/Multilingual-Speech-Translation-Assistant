@@ -3,55 +3,105 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MSTA — Multilingual Speech Translation Assistant. Translate speech and text across 50+ languages instantly.">
   <title>{% block title %}MSTA{% endblock %}</title>
 
+  <!-- Preconnect for font performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
 
+  <!-- Skip to main content (keyboard accessibility) -->
+  <a href="#main-content" class="sr-only" style="position:fixed;top:8px;left:8px;z-index:9999;padding:8px 16px;background:var(--brand-500);color:#fff;border-radius:var(--radius-md);font-weight:600;font-size:.875rem;text-decoration:none;opacity:0;pointer-events:none;transition:opacity .15s" onfocus="this.style.opacity='1';this.style.pointerEvents='all'" onblur="this.style.opacity='0';this.style.pointerEvents='none'">
+    Skip to main content
+  </a>
+
   <!-- ── Navbar ─────────────────────────────────────────────────────────── -->
-  <nav class="navbar">
-    <a href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('auth.login') }}" class="logo">
-      🌐 MSTA
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+
+    <a href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('auth.login') }}"
+       class="logo" aria-label="MSTA — Go to home">
+      MSTA
     </a>
 
-    <ul class="nav-links">
+    <ul class="nav-links" role="list">
+      <li>
+        <a href="{{ url_for('main.about') }}" {% if request.endpoint == 'main.about' %}class="active" aria-current="page"{% endif %}>About</a>
+      </li>
+      <li>
+        <a href="{{ url_for('main.contact') }}" {% if request.endpoint == 'main.contact' %}class="active" aria-current="page"{% endif %}>Contact</a>
+      </li>
       {% if current_user.is_authenticated %}
-        <li><a href="{{ url_for('main.dashboard') }}" {% if request.endpoint == 'main.dashboard' %}class="active"{% endif %}>Dashboard</a></li>
-        <li><a href="{{ url_for('main.translate_page') }}" {% if request.endpoint in ['main.translate_page','translate.translate'] %}class="active"{% endif %}>Translate</a></li>
-        <li><a href="{{ url_for('history.history') }}" {% if request.endpoint == 'history.history' %}class="active"{% endif %}>History</a></li>
-        <li class="nav-user">👤 {{ current_user.username }}</li>
-        <li><a href="{{ url_for('auth.logout') }}" class="nav-logout">Logout</a></li>
+        <li>
+          <a href="{{ url_for('main.dashboard') }}"
+             {% if request.endpoint == 'main.dashboard' %}class="active" aria-current="page"{% endif %}>
+            Dashboard
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('main.translate_page') }}"
+             {% if request.endpoint in ['main.translate_page','translate.translate'] %}class="active" aria-current="page"{% endif %}>
+            Translate
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('history.history') }}"
+             {% if request.endpoint == 'history.history' %}class="active" aria-current="page"{% endif %}>
+            History
+          </a>
+        </li>
+        <li>
+          <span class="nav-user" aria-label="Signed in as {{ current_user.username }}">
+            {{ current_user.username }}
+          </span>
+        </li>
+        <li>
+          <a href="{{ url_for('auth.logout') }}" class="nav-logout">Sign out</a>
+        </li>
       {% else %}
-        <li><a href="{{ url_for('auth.login') }}">Login</a></li>
+        <li>
+          <a href="{{ url_for('auth.login') }}">Sign in</a>
+        </li>
+        <li>
+          <a href="{{ url_for('auth.signup') }}">Sign up</a>
+        </li>
       {% endif %}
+      <li>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle theme">
+          <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
+        </button>
+      </li>
     </ul>
+
   </nav>
 
-  <!-- ── Flash messages ─────────────────────────────────────────────────── -->
+  <!-- ── Toast / Flash messages ─────────────────────────────────────────── -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="flash-container">
+      <div class="flash-container" role="region" aria-label="Notifications" aria-live="polite">
         {% for category, message in messages %}
-          <div class="flash flash-{{ category }}">
-            {{ message }}
-            <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+          <div class="flash flash-{{ category }}" role="alert">
+            <span>{{ message }}</span>
+            <button class="flash-close" onclick="this.closest('.flash').remove()" aria-label="Dismiss notification">×</button>
           </div>
         {% endfor %}
       </div>
     {% endif %}
   {% endwith %}
 
-  <!-- ── Main Content ───────────────────────────────────────────────────── -->
-  <div class="main-content">
+  <!-- ── Main content ───────────────────────────────────────────────────── -->
+  <main class="main-content" id="main-content" tabindex="-1">
     {% block content %}{% endblock %}
-  </div>
+  </main>
 
   <!-- ── Footer ─────────────────────────────────────────────────────────── -->
-  <footer class="footer">
-    <p>© 2026 Multilingual Speech Translator | Built with Flask &amp; AI</p>
+  <footer class="footer" role="contentinfo">
+    <p>© 2026 Multilingual Speech Translator &nbsp;·&nbsp; Built with Flask &amp; AI</p>
   </footer>
 
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>

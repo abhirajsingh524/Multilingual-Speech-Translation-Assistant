@@ -1,0 +1,143 @@
+:root {
+  --glass: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] {
+  --glass: rgba(15, 23, 42, 0.6);
+}
+
+.marketing-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 44px 20px 64px;
+}
+
+.marketing-hero {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto 28px;
+}
+
+.hero-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand-600);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  margin-bottom: 10px;
+}
+
+.marketing-hero h1 {
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  line-height: 1.1;
+  margin-bottom: 12px;
+  letter-spacing: -0.03em;
+}
+
+.hero-subtext {
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+}
+
+.glass-panel {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 26px;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 18px;
+}
+
+.value-grid,
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.value-card,
+.team-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  padding: 20px;
+}
+
+.team-section h2 {
+  margin-bottom: 12px;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-lg);
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--brand-500), var(--accent-500));
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.contact-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 18px;
+}
+
+.contact-form {
+  display: grid;
+  gap: 10px;
+}
+
+.contact-form input,
+.contact-form textarea {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 11px 13px;
+  outline: none;
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.contact-details {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.map-placeholder {
+  border-radius: var(--radius-xl);
+  border: 1px dashed var(--border-strong);
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  background: linear-gradient(135deg, var(--surface-2), var(--surface-3));
+}
+
+.form-error {
+  color: var(--error);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 860px) {
+  .value-grid,
+  .team-grid,
+  .contact-layout {
+    grid-template-columns: 1fr;
+  }
+}

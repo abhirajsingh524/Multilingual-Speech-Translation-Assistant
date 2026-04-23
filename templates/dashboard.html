@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard | MSTA{% endblock %}
+{% block title %}Dashboard — MSTA{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
@@ -7,70 +7,120 @@
 
 {% block content %}
 <div class="dash-wrapper">
+  <div class="dashboard-layout">
+  <aside class="dash-sidebar" aria-label="Dashboard navigation">
+    <h2>Workspace</h2>
+    <a class="active" href="{{ url_for('main.dashboard') }}">Overview</a>
+    <a href="{{ url_for('main.translate_page') }}">Translator</a>
+    <a href="{{ url_for('history.history') }}">History</a>
+    <a href="{{ url_for('main.about') }}">About</a>
+    <a href="{{ url_for('main.contact') }}">Contact</a>
+  </aside>
 
-  <!-- ── Welcome banner ──────────────────────────────────────────────────── -->
-  <div class="dash-banner">
-    <div class="banner-text">
-      <h1>Welcome back, {{ current_user.username }} 👋</h1>
-      <p>Ready to translate? You have <strong>{{ total }}</strong> translation{{ 's' if total != 1 else '' }} in your history.</p>
-    </div>
-    <a href="{{ url_for('main.translate_page') }}" class="btn-new-translate">
-      ✨ New Translation
-    </a>
-  </div>
+  <div class="dash-main">
+    <section class="dash-banner" aria-label="Welcome banner">
+      <div class="banner-text">
+        <h1>Welcome back, {{ current_user.username }} 👋</h1>
+        <p>
+          You have <strong>{{ total }}</strong>
+          translation{{ 's' if total != 1 else '' }} in your history.
+        </p>
+      </div>
+      <a href="{{ url_for('main.translate_page') }}" class="btn-new-translate">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        New Translation
+      </a>
+    </section>
 
-  <!-- ── Stats row ───────────────────────────────────────────────────────── -->
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="stat-icon">📝</div>
+    <div class="stats-row" role="list" aria-label="Usage statistics">
+
+    <article class="stat-card" role="listitem">
+      <div class="stat-icon" aria-hidden="true">📝</div>
       <div class="stat-info">
-        <div class="stat-num">{{ total }}</div>
+        <div class="stat-num" aria-label="{{ total }} total translations">{{ total }}</div>
         <div class="stat-lbl">Total Translations</div>
       </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">🌐</div>
+    </article>
+
+    <article class="stat-card" role="listitem">
+      <div class="stat-icon" aria-hidden="true">🌐</div>
       <div class="stat-info">
-        <div class="stat-num">50+</div>
+        <div class="stat-num" aria-label="50 plus languages supported">50+</div>
         <div class="stat-lbl">Languages Supported</div>
       </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">⚡</div>
+    </article>
+
+    <article class="stat-card" role="listitem">
+      <div class="stat-icon" aria-hidden="true">⚡</div>
       <div class="stat-info">
-        <div class="stat-num">&lt;2s</div>
+        <div class="stat-num" aria-label="Less than 2 seconds average response">&lt;2s</div>
         <div class="stat-lbl">Avg. Response</div>
       </div>
+    </article>
+
     </div>
-  </div>
+
+    <section class="dash-section metrics-section">
+      <h2>Analytics Snapshot</h2>
+      <div class="metric-grid">
+        <article class="metric-card">
+          <p>Weekly Translations</p>
+          <strong>{{ total if total < 100 else '99+' }}</strong>
+          <div class="metric-bar"><span style="width:72%"></span></div>
+        </article>
+        <article class="metric-card">
+          <p>Avg Response Time</p>
+          <strong>1.8s</strong>
+          <div class="metric-bar"><span style="width:64%"></span></div>
+        </article>
+        <article class="metric-card">
+          <p>Speech Usage</p>
+          <strong>39%</strong>
+          <div class="metric-bar"><span style="width:39%"></span></div>
+        </article>
+      </div>
+    </section>
 
   <!-- ── Recent translations ─────────────────────────────────────────────── -->
-  <div class="dash-section">
+  <section class="dash-section" aria-labelledby="recent-heading">
     <div class="section-header">
-      <h2>Recent Translations</h2>
-      <a href="{{ url_for('history.history') }}" class="view-all-link">View all →</a>
+      <h2 id="recent-heading">Recent Translations</h2>
+      <a href="{{ url_for('history.history') }}" class="view-all-link" aria-label="View all translation history">
+        View all
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
     </div>
 
     {% if recent %}
       <div class="history-table-wrap">
-        <table class="history-table">
+        <table class="history-table" aria-label="Recent translations">
           <thead>
             <tr>
-              <th>Original</th>
-              <th>Translated</th>
-              <th>Languages</th>
-              <th>Model</th>
-              <th>Time</th>
+              <th scope="col">Original</th>
+              <th scope="col">Translated</th>
+              <th scope="col">Languages</th>
+              <th scope="col">Model</th>
+              <th scope="col">Time</th>
             </tr>
           </thead>
           <tbody>
             {% for entry in recent %}
             <tr>
-              <td class="text-cell">{{ entry.original_text[:60] }}{% if entry.original_text|length > 60 %}…{% endif %}</td>
-              <td class="text-cell">{{ entry.translated_text[:60] }}{% if entry.translated_text|length > 60 %}…{% endif %}</td>
-              <td><span class="lang-badge">{{ entry.source_lang }} → {{ entry.target_lang }}</span></td>
-              <td><span class="model-badge model-{{ entry.model_used }}">{{ entry.model_used }}</span></td>
-              <td class="time-cell">{{ entry.timestamp.strftime('%b %d, %H:%M') if entry.timestamp and entry.timestamp != '' else '—' }}</td>
+              <td class="text-cell" title="{{ entry.original_text }}">
+                {{ entry.original_text[:60] }}{% if entry.original_text|length > 60 %}…{% endif %}
+              </td>
+              <td class="text-cell" title="{{ entry.translated_text }}">
+                {{ entry.translated_text[:60] }}{% if entry.translated_text|length > 60 %}…{% endif %}
+              </td>
+              <td>
+                <span class="lang-badge">{{ entry.source_lang }} → {{ entry.target_lang }}</span>
+              </td>
+              <td>
+                <span class="model-badge model-{{ entry.model_used }}">{{ entry.model_used }}</span>
+              </td>
+              <td class="time-cell">
+                <time>{{ entry.timestamp.strftime('%b %d, %H:%M') if entry.timestamp and entry.timestamp != '' else '—' }}</time>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -78,18 +128,24 @@
       </div>
     {% else %}
       <div class="empty-state">
-        <div class="empty-icon">🌍</div>
-        <p>No translations yet. <a href="{{ url_for('main.translate_page') }}">Start translating!</a></p>
+        <div class="empty-icon" aria-hidden="true">🌍</div>
+        <p>No translations yet.<br>
+          <a href="{{ url_for('main.translate_page') }}">Make your first translation</a>
+        </p>
       </div>
     {% endif %}
-  </div>
+  </section>
 
-  <!-- ── Quick translate shortcut ────────────────────────────────────────── -->
-  <div class="dash-section quick-section">
-    <h2>Quick Translate</h2>
+  <!-- ── Quick translate ─────────────────────────────────────────────────── -->
+  <section class="dash-section quick-section" aria-labelledby="quick-heading">
+    <h2 id="quick-heading">Quick Translate</h2>
     <p>Jump straight into a new translation session.</p>
-    <a href="{{ url_for('main.translate_page') }}" class="btn-new-translate">Open Translator →</a>
+    <a href="{{ url_for('main.translate_page') }}" class="btn-new-translate">
+      Open Translator
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </section>
   </div>
-
+  </div>
 </div>
 {% endblock %}
