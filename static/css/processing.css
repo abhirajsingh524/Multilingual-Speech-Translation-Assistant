@@ -1,0 +1,306 @@
+/* =============================================================================
+   MSTA — processing.css
+   Two modes:
+     .proc-card--hacker   → dark terminal, green-on-black (high load)
+     .proc-card--standard → clean light card (normal load)
+   ============================================================================= */
+
+/* ── Shared wrapper ──────────────────────────────────────────────────────────── */
+.proc-wrapper {
+  min-height: calc(100vh - var(--nav-height) - var(--footer-height));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.proc-card {
+  width: 100%;
+  max-width: 560px;
+  border-radius: var(--radius-2xl);
+  padding: 40px 36px;
+  text-align: center;
+  animation: procIn 380ms cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+@keyframes procIn {
+  from { opacity: 0; transform: scale(.96) translateY(14px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+/* ── Shared progress bar track ───────────────────────────────────────────────── */
+.proc-bar-track {
+  height: 6px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  flex: 1;
+}
+
+.proc-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: var(--radius-full);
+  transition: width 70ms linear;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   HACKER PANEL
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.proc-wrapper:has(.proc-card--hacker) {
+  background: #020c14;
+}
+
+.proc-card--hacker {
+  background: #040f1a;
+  border: 1px solid rgba(0,255,136,.18);
+  box-shadow:
+    0 0 0 1px rgba(0,255,136,.06),
+    0 8px 40px rgba(0,0,0,.65),
+    0 0 80px rgba(0,255,136,.04) inset;
+}
+
+/* Animated logo */
+.proc-logo {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 24px;
+}
+
+.proc-logo-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: #00ff88;
+  border-right-color: rgba(0,255,136,.25);
+  animation: spinRing 900ms linear infinite;
+}
+
+.proc-logo-ring--2 {
+  inset: 8px;
+  border-top-color: #00d4ff;
+  border-right-color: rgba(0,212,255,.2);
+  animation-duration: 1400ms;
+  animation-direction: reverse;
+}
+
+.proc-logo-inner {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: rgba(0,255,136,.08);
+  border: 1px solid rgba(0,255,136,.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+@keyframes spinRing { to { transform: rotate(360deg); } }
+
+/* Title & status */
+.proc-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: #00ff88;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+  text-shadow: 0 0 20px rgba(0,255,136,.4);
+}
+
+.proc-subtitle {
+  font-size: var(--text-sm);
+  color: rgba(0,255,136,.6);
+  margin-bottom: 20px;
+  min-height: 20px;
+  font-family: 'SF Mono','Fira Code','Consolas',monospace;
+}
+
+/* Terminal window */
+.proc-terminal {
+  background: #010a10;
+  border: 1px solid rgba(0,255,136,.12);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.proc-terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(0,255,136,.05);
+  border-bottom: 1px solid rgba(0,255,136,.08);
+}
+
+.proc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.proc-dot--red    { background: #ff5f57; }
+.proc-dot--yellow { background: #febc2e; }
+.proc-dot--green  { background: #28c840; }
+
+.proc-terminal-title {
+  font-size: 0.65rem;
+  color: rgba(0,255,136,.4);
+  font-family: 'SF Mono','Fira Code','Consolas',monospace;
+  margin-left: 4px;
+}
+
+.proc-terminal-body {
+  padding: 10px 14px;
+  height: 130px;
+  overflow: hidden;
+  font-family: 'SF Mono','Fira Code','Consolas',monospace;
+  font-size: 0.65rem;
+  line-height: 1.75;
+}
+
+.proc-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: lineIn 70ms ease both;
+}
+
+@keyframes lineIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Dual progress bars */
+.proc-bars { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+.proc-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.proc-bar-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(0,255,136,.5);
+  font-family: 'SF Mono','Fira Code','Consolas',monospace;
+  letter-spacing: .08em;
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.proc-bar-pct {
+  font-size: 0.6rem;
+  color: rgba(0,255,136,.5);
+  font-family: 'SF Mono','Fira Code','Consolas',monospace;
+  font-variant-numeric: tabular-nums;
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.proc-card--hacker .proc-bar-track { background: rgba(0,255,136,.08); }
+
+.proc-bar-fill--green {
+  background: linear-gradient(90deg, #00c853, #00ff88);
+  box-shadow: 0 0 8px rgba(0,255,136,.5);
+}
+
+.proc-bar-fill--cyan {
+  background: linear-gradient(90deg, #0097a7, #00d4ff);
+  box-shadow: 0 0 8px rgba(0,212,255,.4);
+}
+
+/* Disclaimer */
+.proc-disclaimer {
+  font-size: 0.6rem;
+  color: rgba(0,255,136,.25);
+  font-family: 'SF Mono','Fira Code','Consolas',monospace;
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STANDARD LOADER
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.proc-wrapper:has(.proc-card--standard) {
+  background: var(--surface-2);
+}
+
+.proc-card--standard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xl);
+}
+
+/* Spinner */
+.std-spinner {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 24px;
+}
+
+.std-spinner-svg {
+  width: 100%;
+  height: 100%;
+  animation: spinRing 1.2s linear infinite;
+}
+
+.std-spinner-track { stroke: var(--border); }
+
+.std-spinner-arc {
+  stroke: var(--brand-500);
+  stroke-linecap: round;
+  animation: arcDash 1.5s ease-in-out infinite;
+}
+
+@keyframes arcDash {
+  0%   { stroke-dasharray: 1 200;  stroke-dashoffset: 0; }
+  50%  { stroke-dasharray: 100 200; stroke-dashoffset: -30; }
+  100% { stroke-dasharray: 100 200; stroke-dashoffset: -125; }
+}
+
+.std-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  margin-bottom: 6px;
+}
+
+.std-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  min-height: 20px;
+}
+
+.std-bar-track {
+  background: var(--surface-3);
+  margin-bottom: 8px;
+}
+
+.proc-bar-fill--brand {
+  background: linear-gradient(90deg, var(--brand-500), var(--accent-500));
+}
+
+.std-pct {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .proc-card { padding: 28px 20px; }
+  .proc-terminal-body { height: 90px; font-size: 0.58rem; }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .proc-logo-ring, .std-spinner-svg, .std-spinner-arc { animation: none; }
+  .proc-line { animation: none; }
+}
