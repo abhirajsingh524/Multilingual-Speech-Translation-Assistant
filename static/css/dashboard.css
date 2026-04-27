@@ -72,7 +72,7 @@
 .dash-main { min-width: 0; }
 
 /* =============================================================================
-   WELCOME BANNER — Asmani → Sky gradient
+   WELCOME BANNER — light sky-blue, fully readable text, matches site palette
    ============================================================================= */
 .dash-banner {
   position: relative;
@@ -81,12 +81,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  background: linear-gradient(135deg, var(--sky) 0%, var(--asmani) 100%);
-  border: 1px solid rgba(255,255,255,.2);
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 60%, #e0f7fa 100%);
+  border: 1px solid #7dd3fc;
   border-radius: var(--radius-2xl);
   padding: 28px 32px;
   margin-bottom: 24px;
-  box-shadow: 0 8px 32px rgba(79,195,247,.25);
+  box-shadow: 0 2px 12px rgba(14,165,233,.12), 0 1px 0 rgba(255,255,255,.8) inset;
   animation: bannerIn 400ms var(--ease-spring) both;
 }
 
@@ -119,24 +119,28 @@
 .banner-text h1 {
   font-size: var(--text-xl);
   font-weight: 800;
-  color: var(--white);
+  color: #0369a1;                   /* sky-700 — fully readable on light bg */
   letter-spacing: -0.03em;
   margin-bottom: 6px;
 }
 
 .banner-text p {
   font-size: var(--text-sm);
-  color: rgba(255,255,255,.8);
+  color: #0284c7;                   /* sky-600 — readable, not washed out */
   line-height: 1.5;
 }
 
-/* Yellow highlight for count */
+/* Accent highlight for count */
 .banner-text p strong {
-  color: var(--yellow);
+  color: #0369a1;
   font-weight: 700;
+  background: rgba(14,165,233,.12);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(14,165,233,.20);
 }
 
-/* CTA button — RED */
+/* CTA button — solid sky-blue pill, white text, clear on light banner */
 .btn-new-translate {
   position: relative;
   z-index: 1;
@@ -144,22 +148,23 @@
   align-items: center;
   gap: 7px;
   padding: 11px 22px;
-  background: var(--red);
-  color: var(--white);
+  background: #0ea5e9;
+  color: #fff;
   font-weight: 700;
   font-size: var(--text-sm);
   letter-spacing: -0.01em;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-full);
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
-  box-shadow: var(--shadow-red);
+  border: none;
+  box-shadow: 0 2px 10px rgba(14,165,233,.30);
   transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
 }
 .btn-new-translate:hover {
-  background: var(--red-dark);
+  background: #0284c7;
   transform: translateY(-2px) scale(1.02);
-  box-shadow: var(--shadow-red-lg);
+  box-shadow: 0 6px 18px rgba(14,165,233,.38);
 }
 
 /* =============================================================================
