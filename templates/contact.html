@@ -3,6 +3,37 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/marketing.css') }}">
+<style>
+  /* Scoped to contact page only — .hidden not defined globally */
+  .hidden { display: none !important; }
+
+  /* Submit button loading state */
+  .btn-contact-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    opacity: .75;
+  }
+  .btn-contact-loading::before {
+    content: '';
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: contact-spin 600ms linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes contact-spin { to { transform: rotate(360deg); } }
+
+  /* Field-level error highlight */
+  .contact-form input.field-invalid,
+  .contact-form textarea.field-invalid {
+    border-color: var(--error, #ef4444);
+    box-shadow: 0 0 0 3px rgba(239,68,68,.1);
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -16,27 +47,61 @@
   <div class="contact-layout">
     <section class="glass-panel">
       <h2>Send a Message</h2>
-      <form class="contact-form" action="#" method="post" onsubmit="return validateContactForm(event)" novalidate>
+
+      {# POST to the real /contact endpoint — action="#" caused 405 on submit #}
+      <form
+        class="contact-form"
+        action="{{ url_for('main.contact') }}"
+        method="post"
+        id="contact-form"
+        novalidate>
+
         <label for="name">Full name</label>
-        <input id="name" name="name" type="text" placeholder="Your name" required>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          placeholder="Your name"
+          value="{{ form_name | default('') }}"
+          required
+          autocomplete="name">
 
         <label for="email">Email</label>
-        <input id="email" name="email" type="email" placeholder="you@company.com" required>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          placeholder="you@company.com"
+          value="{{ form_email | default('') }}"
+          required
+          autocomplete="email">
 
         <label for="message">Message</label>
-        <textarea id="message" name="message" rows="5" placeholder="How can we help?" required></textarea>
+        <textarea
+          id="message"
+          name="message"
+          rows="5"
+          placeholder="How can we help?"
+          required>{{ form_message | default('') }}</textarea>
 
-        <p id="contact-error" class="form-error hidden" role="alert">Please complete all fields with valid details.</p>
-        <button type="submit" class="btn btn-gradient btn-lg">Send Message</button>
+        {# Client-side error — shown only when JS catches an empty/invalid field #}
+        <p id="contact-error" class="form-error hidden" role="alert" aria-live="assertive">
+          Please complete all fields with valid details.
+        </p>
+
+        <button type="submit" class="btn btn-gradient btn-lg" id="contact-submit-btn">
+          Send Message
+        </button>
+
       </form>
     </section>
 
     <aside class="glass-panel">
       <h2>Contact Details</h2>
       <ul class="contact-details">
-        <li><strong>Email:</strong> hello@msta.app</li>
-        <li><strong>Phone:</strong> +91 00000 00000</li>
-        <li><strong>Address:</strong> Bengaluru, India</li>
+        <li><strong>Email:</strong> Anoop005240@gmail.com</li>
+        <li><strong>Phone:</strong> +91 7518915991</li>
+        <li><strong>Address:</strong> Noida, India</li>
       </ul>
       <div class="map-placeholder" role="img" aria-label="Map placeholder for office location">
         <span>Map Preview</span>
@@ -48,21 +113,53 @@
 
 {% block extra_js %}
 <script>
-  function validateContactForm(event) {
-    const name = document.getElementById('name').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const message = document.getElementById('message').value.trim();
-    const error = document.getElementById('contact-error');
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+(function () {
+  'use strict';
 
-    if (!name || !validEmail || !message) {
-      event.preventDefault();
-      error.classList.remove('hidden');
-      return false;
+  const form      = document.getElementById('contact-form');
+  const submitBtn = document.getElementById('contact-submit-btn');
+  const errorBox  = document.getElementById('contact-error');
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function showError(msg) {
+    errorBox.textContent = msg || 'Please complete all fields with valid details.';
+    errorBox.classList.remove('hidden');
+    // Highlight invalid fields
+    ['name', 'email', 'message'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('field-invalid', !el.value.trim() || (id === 'email' && !EMAIL_RE.test(el.value.trim())));
+    });
+  }
+
+  function clearError() {
+    errorBox.classList.add('hidden');
+    ['name', 'email', 'message'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('field-invalid');
+    });
+  }
+
+  // Clear error as user types
+  form.addEventListener('input', clearError);
+
+  form.addEventListener('submit', function (e) {
+    const name    = document.getElementById('name').value.trim();
+    const email   = document.getElementById('email').value.trim();
+    const message = document.getElementById('message').value.trim();
+
+    if (!name || !EMAIL_RE.test(email) || !message) {
+      e.preventDefault();
+      showError();
+      return;
     }
 
-    error.classList.add('hidden');
-    return true;
-  }
+    // Valid — show loading state so user knows the form is submitting
+    clearError();
+    submitBtn.disabled = true;
+    submitBtn.classList.add('btn-contact-loading');
+    submitBtn.textContent = 'Sending…';
+  });
+})();
 </script>
 {% endblock %}

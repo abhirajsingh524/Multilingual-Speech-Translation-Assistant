@@ -113,7 +113,11 @@ def translate():
                 flash("No speech detected in the audio file.", "error")
                 return redirect(url_for("main.translate_page"))
 
-            # Step 3 — translate extracted text
+            # Step 3 — translate extracted text.
+            # The "speech" model_choice covers transcription only; translation
+            # always uses the local HuggingFace pipeline here.  If Groq
+            # translation is needed after STT, a separate model_choice field
+            # for the translation step should be added to the form (P2 backlog).
             translated_text = translate_text(extracted_text, source_lang, target_lang)
 
             # Step 4 — save plain-text output file (optional, non-blocking)

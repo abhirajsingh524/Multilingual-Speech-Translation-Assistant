@@ -89,8 +89,16 @@ def create_app() -> Flask:
     app.register_blueprint(history_bp)
 
     # ── Background audio cleanup ──────────────────────────────────────────────
+    # Guard: only start the scheduler in the actual worker process.
+    # Werkzeug's debug reloader spawns a parent monitor + a child worker.
+    # APScheduler started in the parent holds a socket that becomes invalid
+    # after the child restarts, causing WinError 10038 on Windows.
+    # WERKZEUG_RUN_MAIN is set to "true" only in the child (real) process.
     max_age = int(os.getenv("FILE_CLEANUP_HOURS", 24))
-    start_cleanup_scheduler(app.config["UPLOAD_FOLDER"], max_age)
+    _in_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    _running_directly  = not app.debug  # production / gunicorn — always start
+    if _in_reloader_child or _running_directly:
+        start_cleanup_scheduler(app.config["UPLOAD_FOLDER"], max_age)
 
     return app
 
