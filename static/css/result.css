@@ -1,6 +1,5 @@
 /* =============================================================================
-   MSTA — Result Page
-   Organisms: result-card, result-box, result-actions
+   MSTA — Result Page  |  Asmani bg · Sky boxes · Red CTA · Yellow status
    ============================================================================= */
 
 /* ── Page wrapper ──────────────────────────────────────────────────────────── */
@@ -9,27 +8,27 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 40px 16px 56px;
+  padding: 40px 16px 60px;
   background:
-    radial-gradient(ellipse 65% 45% at 12% 18%, rgba(99,102,241,.06) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 40% at 88% 82%, rgba(139,92,246,.05) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 45% at 12% 18%, rgba(135,206,235,.3) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 88% 82%, rgba(79,195,247,.18) 0%, transparent 55%),
     var(--surface-2);
 }
 
-/* ── Result card ───────────────────────────────────────────────────────────── */
+/* ── Result card — white, sky shadow ──────────────────────────────────────── */
 .result-card {
-  background: var(--surface);
+  background: var(--white);
   border: 1px solid var(--border);
   border-radius: var(--radius-2xl);
   padding: 32px;
   width: 100%;
   max-width: 720px;
-  box-shadow: var(--shadow-xl);
-  animation: resultIn 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  box-shadow: 0 20px 48px rgba(79,195,247,.18), 0 4px 12px rgba(79,195,247,.1);
+  animation: resultIn 360ms var(--ease-spring) both;
 }
 
 @keyframes resultIn {
-  from { opacity: 0; transform: translateY(20px) scale(.98); }
+  from { opacity: 0; transform: translateY(24px) scale(.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -44,11 +43,11 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* Success indicator */
+/* Success status — green pulse */
 .result-status {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
@@ -68,17 +67,17 @@
 
 .result-status-label {
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--success);
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: .07em;
 }
 
 .result-card h1 {
   font-size: var(--text-xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.025em;
+  font-weight: 800;
+  color: var(--dark);
+  letter-spacing: -0.03em;
   margin-bottom: 10px;
 }
 
@@ -89,14 +88,14 @@
   align-items: center;
 }
 
-/* Pills */
+/* Pills — Sky + Yellow */
 .lang-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: var(--brand-50);
-  color: var(--brand-700);
-  border: 1px solid var(--brand-200);
+  background: var(--sky-light);
+  color: var(--sky-deeper);
+  border: 1px solid var(--info-border);
   border-radius: var(--radius-full);
   padding: 3px 12px;
   font-size: var(--text-xs);
@@ -106,9 +105,9 @@
 .model-pill {
   display: inline-flex;
   align-items: center;
-  background: var(--accent-50);
-  color: var(--accent-600);
-  border: 1px solid var(--accent-100);
+  background: var(--yellow-light);
+  color: #92400e;
+  border: 1px solid var(--yellow-border);
   border-radius: var(--radius-full);
   padding: 3px 12px;
   font-size: var(--text-xs);
@@ -116,22 +115,28 @@
 }
 
 /* ── Result boxes ──────────────────────────────────────────────────────────── */
+/* Original — Asmani tint */
 .result-box {
-  background: var(--surface-2);
+  background: var(--asmani-xlight);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 20px 22px;
   margin-bottom: 12px;
-  transition: box-shadow var(--transition), border-color var(--transition);
+  transition: box-shadow var(--transition), border-color var(--transition),
+              transform var(--transition);
 }
-.result-box:hover { box-shadow: var(--shadow-sm); border-color: var(--border-strong); }
+.result-box:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--sky);
+  transform: translateY(-1px);
+}
 
-/* Translated box — green tint for success state */
+/* Translated — Sky Blue tint */
 .result-box-translated {
-  background: var(--success-light);
-  border-color: var(--success-border);
+  background: var(--sky-xlight);
+  border-color: var(--info-border);
 }
-.result-box-translated:hover { border-color: #86efac; }
+.result-box-translated:hover { border-color: var(--sky); }
 
 .result-box-header {
   display: flex;
@@ -143,44 +148,44 @@
 .result-box-header h2 {
   font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--sky-deeper);
   text-transform: uppercase;
   letter-spacing: .08em;
 }
 
 .result-text {
   font-size: var(--text-md);
-  color: var(--text-primary);
+  color: var(--dark);
   line-height: 1.75;
   word-break: break-word;
 }
 
-/* ── Copy button — micro-interaction ──────────────────────────────────────── */
+/* ── Copy button — Sky hover ───────────────────────────────────────────────── */
 .copy-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--white);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--dark-2);
   cursor: pointer;
   transition:
-    background var(--transition),
-    border-color var(--transition),
-    color var(--transition),
-    transform var(--transition);
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
 }
 .copy-btn:hover {
-  background: var(--brand-50);
-  border-color: var(--brand-200);
-  color: var(--brand-700);
+  background: var(--sky-light);
+  border-color: var(--sky);
+  color: var(--sky-deeper);
   transform: translateY(-1px);
 }
-.copy-btn:active { transform: scale(.96); }
+.copy-btn:active { transform: scale(.95); }
 
 /* ── Audio player ──────────────────────────────────────────────────────────── */
 .result-box audio {
@@ -204,42 +209,47 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 18px;
+  padding: 10px 20px;
   border-radius: var(--radius-lg);
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
   letter-spacing: -0.01em;
   transition:
-    opacity var(--transition),
     transform var(--transition),
     box-shadow var(--transition),
-    background var(--transition);
+    background var(--transition),
+    border-color var(--transition);
 }
 .btn-action:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .btn-action:active { transform: scale(.97); }
 
+/* Translate Again — RED CTA */
 .btn-back {
-  background: var(--brand-50);
-  color: var(--brand-700);
-  border-color: var(--brand-200);
+  background: var(--red);
+  color: var(--white);
+  border-color: var(--red);
+  box-shadow: var(--shadow-red);
 }
-.btn-back:hover { background: var(--brand-100); }
+.btn-back:hover { background: var(--red-dark); box-shadow: var(--shadow-red-lg); }
 
+/* Dashboard — Sky Blue */
 .btn-dash {
-  background: var(--surface-3);
-  color: var(--text-secondary);
-  border-color: var(--border);
+  background: var(--sky);
+  color: var(--white);
+  border-color: var(--sky);
+  box-shadow: var(--shadow-sky);
 }
-.btn-dash:hover { background: var(--surface-2); border-color: var(--border-strong); }
+.btn-dash:hover { background: var(--sky-dark); box-shadow: var(--shadow-sky-lg); }
 
+/* History — Asmani outline */
 .btn-hist {
-  background: var(--accent-50);
-  color: var(--accent-600);
-  border-color: var(--accent-100);
+  background: var(--asmani-xlight);
+  color: var(--sky-deeper);
+  border-color: var(--asmani-dark);
 }
-.btn-hist:hover { background: var(--accent-100); }
+.btn-hist:hover { background: var(--sky-xlight); border-color: var(--sky); }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
