@@ -250,3 +250,93 @@
 @media (max-width: 480px) {
   .auth-card { padding: 28px 20px; }
 }
+
+/* ── My Space tab switcher ───────────────────────────────────────────────── */
+.ms-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-3);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  margin-bottom: 20px;
+}
+
+.ms-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+}
+
+.ms-tab.active {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.ms-panel { display: none; }
+.ms-panel.active { display: block; }
+
+/* ── Google OAuth button ─────────────────────────────────────────────────── */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition),
+              box-shadow var(--transition), transform var(--transition);
+  margin-bottom: 16px;
+}
+
+.btn-google:hover {
+  background: var(--surface-2);
+  border-color: #4285F4;
+  box-shadow: 0 2px 12px rgba(66,133,244,.18);
+  transform: translateY(-1px);
+}
+
+.btn-google:active { transform: scale(.98); }
+
+/* ── My Space nav button ─────────────────────────────────────────────────── */
+.nav-myspace {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px !important;
+  border-radius: var(--radius-md) !important;
+  background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(139,92,246,.15)) !important;
+  border: 1px solid rgba(99,102,241,.25) !important;
+  color: var(--brand-400) !important;
+  font-size: var(--text-sm) !important;
+  font-weight: 600 !important;
+  transition: background var(--transition), border-color var(--transition),
+              transform var(--transition) !important;
+}
+
+.nav-myspace:hover {
+  background: linear-gradient(135deg, rgba(99,102,241,.28), rgba(139,92,246,.28)) !important;
+  border-color: rgba(99,102,241,.45) !important;
+  color: #fff !important;
+  transform: translateY(-1px) !important;
+}
+
+.nav-myspace.active {
+  background: linear-gradient(135deg, rgba(99,102,241,.35), rgba(139,92,246,.35)) !important;
+  color: #fff !important;
+}

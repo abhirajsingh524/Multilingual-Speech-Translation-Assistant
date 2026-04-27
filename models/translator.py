@@ -1,5 +1,7 @@
 import torch
 import re
+import logging
+from functools import lru_cache
 from transformers import (
     MarianMTModel,
     MarianTokenizer,
@@ -7,10 +9,38 @@ from transformers import (
     AutoModelForSeq2SeqLM
 )
 
+logger = logging.getLogger(__name__)
+
 # ------------------ DEVICE ------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_num_threads(4)
 #--- name----
+# Languages that use non-Latin scripts — name extraction via ASCII regex
+# is meaningless for these, and placeholder injection corrupts the output
+# because the translation model either translates the placeholder literally
+# or drops it, leaving raw __NAME0__ tokens in the final string.
+_NON_LATIN_LANGS = {
+    "hi", "bn", "ur", "ta", "te", "mr", "gu", "pa", "ml", "kn",
+    "ne", "si", "as", "or", "sd", "ks", "kok", "mai", "bho", "sat",
+    "doi", "mni",                          # Indian scripts
+    "ar", "fa", "he",                      # Arabic / Hebrew
+    "zh", "ja", "ko",                      # CJK
+    "th", "my", "km", "lo",               # SE Asian scripts
+    "am",                                  # Ethiopic
+    "ru", "uk",                            # Cyrillic (capitals differ from Latin)
+    "el",                                  # Greek
+}
+
+
+def _should_preserve_names(src: str, tgt: str) -> bool:
+    """
+    Return True only when both languages use Latin script and name
+    preservation is safe.  For any non-Latin pair we skip substitution
+    entirely to avoid __NAMEn__ token corruption in the output.
+    """
+    return src not in _NON_LATIN_LANGS and tgt not in _NON_LATIN_LANGS
+
+
 def extract_names(text):
     # Detect words starting with capital letter (simple approach)
     return re.findall(r'\b[A-Z][a-z]+\b', text)
@@ -25,10 +55,38 @@ def replace_names(text, names):
 def restore_names(text, names):
     for i, name in enumerate(names):
         text = text.replace(f"__NAME{i}__", name)
+    # Safety net: strip any leftover placeholder tokens that the model
+    # failed to preserve, so they never appear in the final output.
+    text = re.sub(r'__NAME\d+__', '', text)
+    text = re.sub(r'\s{2,}', ' ', text).strip()
     return text
 
 # ------------------ CACHE ------------------
-cache = {}
+# Bounded LRU cache — evicts oldest entries beyond MAX_CACHE_SIZE to prevent
+# unbounded memory growth in long-running server sessions.
+_MAX_CACHE_SIZE = 2048
+
+class _LRUCache:
+    """Simple thread-unsafe LRU cache backed by an OrderedDict."""
+    def __init__(self, maxsize: int):
+        from collections import OrderedDict
+        self._store: "OrderedDict[str, str]" = OrderedDict()
+        self._maxsize = maxsize
+
+    def get(self, key: str):
+        if key not in self._store:
+            return None
+        self._store.move_to_end(key)
+        return self._store[key]
+
+    def set(self, key: str, value: str):
+        if key in self._store:
+            self._store.move_to_end(key)
+        self._store[key] = value
+        if len(self._store) > self._maxsize:
+            self._store.popitem(last=False)   # evict oldest
+
+cache = _LRUCache(_MAX_CACHE_SIZE)
 
 # ------------------ QUANTIZATION ------------------
 def quantize_model(model):
@@ -283,12 +341,28 @@ def translate_nllb(text, src, tgt):
     # Load NLLB model lazily
     nllb_tokenizer, nllb_model = load_nllb()
 
+    # Set the source language on the tokenizer so the encoder gets the right
+    # language token.  AutoTokenizer returns an NllbTokenizer whose src_lang
+    # attribute controls the BOS token injected during encoding.
+    nllb_tokenizer.src_lang = src_code
+
     inputs = nllb_tokenizer(text, return_tensors="pt").to(DEVICE)
+
+    # Resolve the target-language token id via convert_tokens_to_ids —
+    # the correct API across all transformers versions.
+    # lang_code_to_id is a legacy dict that does NOT exist on every build
+    # and raises KeyError / AttributeError silently swallowed upstream.
+    tgt_token_id = nllb_tokenizer.convert_tokens_to_ids(tgt_code)
+    if tgt_token_id == nllb_tokenizer.unk_token_id:
+        # Fallback: try the lang_code_to_id dict if it exists (older builds)
+        tgt_token_id = getattr(nllb_tokenizer, "lang_code_to_id", {}).get(
+            tgt_code, tgt_token_id
+        )
 
     with torch.inference_mode():
         outputs = nllb_model.generate(
             **inputs,
-            forced_bos_token_id=nllb_tokenizer.lang_code_to_id[tgt_code],
+            forced_bos_token_id=tgt_token_id,
             max_length=128,
             num_beams=2
         )
@@ -305,8 +379,12 @@ def translate_text(text, source_lang="en", target_lang="hi"):
     target_lang = target_lang.lower()
 
     # ------------------ NAME HANDLING ------------------
-    names = extract_names(text)
-    text = replace_names(text, names)
+    # Only preserve names when both languages use Latin script.
+    # For non-Latin pairs the placeholder approach corrupts the output.
+    use_name_preservation = _should_preserve_names(source_lang, target_lang)
+    names = extract_names(text) if use_name_preservation else []
+    if names:
+        text = replace_names(text, names)
 
     # ------------------ CLEAN + SPLIT ------------------
     text = clean_text(text)
@@ -320,15 +398,24 @@ def translate_text(text, source_lang="en", target_lang="hi"):
 
         key = f"{source_lang}-{target_lang}-{sentence}"
 
-        if key in cache:
-            translated = cache[key]
+        if cache.get(key) is not None:
+            translated = cache.get(key)
         else:
             if (source_lang, target_lang) in MARIAN_MODELS:
-                translated = translate_marian(sentence, source_lang, target_lang)
+                try:
+                    translated = translate_marian(sentence, source_lang, target_lang)
+                except Exception as marian_err:
+                    # Model may not exist on HuggingFace Hub (e.g. en↔bn, en↔mr,
+                    # en↔gu, en↔te, en↔ta).  Fall back to NLLB silently.
+                    logger.warning(
+                        "Marian failed for (%s→%s), falling back to NLLB: %s",
+                        source_lang, target_lang, marian_err
+                    )
+                    translated = translate_nllb(sentence, source_lang, target_lang)
             else:
                 translated = translate_nllb(sentence, source_lang, target_lang)
 
-            cache[key] = translated
+            cache.set(key, translated)
 
         translated_sentences.append(translated)
 
@@ -336,6 +423,11 @@ def translate_text(text, source_lang="en", target_lang="hi"):
     result = " ".join(translated_sentences)
 
     # ------------------ RESTORE NAMES ------------------
-    result = restore_names(result, names)
+    if names:
+        result = restore_names(result, names)
+    else:
+        # Still run the safety-net strip in case any stray tokens slipped through
+        result = re.sub(r'__NAME\d+__', '', result)
+        result = re.sub(r'\s{2,}', ' ', result).strip()
 
     return result
