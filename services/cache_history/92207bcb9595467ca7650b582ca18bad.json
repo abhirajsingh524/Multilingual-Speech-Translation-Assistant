@@ -1,0 +1,26 @@
+[
+  {
+    "user_email": "anoop005240@gmail.com",
+    "original_text": "how are you ?",
+    "translated_text": "आप कैसे हैं?",
+    "source_lang": "en",
+    "target_lang": "hi",
+    "model_used": "huggingface",
+    "audio_filename": null,
+    "timestamp": "2026-04-25T08:08:34.445131+00:00",
+    "_id": "69ec7682b125c03708e64620",
+    "id": "69ec7682b125c03708e64620"
+  },
+  {
+    "user_email": "anoop005240@gmail.com",
+    "original_text": "hii !akshat ! how the things going on ?",
+    "translated_text": "హాయ్ ! అక్షత్ ! విషయాలు ఎలా సాగుతున్నాయి ?",
+    "source_lang": "en",
+    "target_lang": "te",
+    "model_used": "groq",
+    "audio_filename": null,
+    "timestamp": "2026-04-25T08:10:00.932150+00:00",
+    "_id": "69ec76d8b125c03708e64621",
+    "id": "69ec76d8b125c03708e64621"
+  }
+]

@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Processing — MSTA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/processing.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="proc-wrapper" id="proc-wrapper"
+     data-redirect="{{ redirect_to or url_for('main.dashboard') }}"
+     data-mode="{{ 'hacker' if show_hacker_panel else 'standard' }}">
+
+  {% if show_hacker_panel %}
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       HACKER PANEL — shown only under high server load / latency
+       Purely cosmetic. No real cryptographic processing occurs.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="proc-card proc-card--hacker" id="proc-card">
+
+    <div class="proc-logo" aria-hidden="true">
+      <span class="proc-logo-ring"></span>
+      <span class="proc-logo-ring proc-logo-ring--2"></span>
+      <span class="proc-logo-inner">⚡</span>
+    </div>
+
+    <h1 class="proc-title" id="proc-title">Initialising Secure Session</h1>
+    <p class="proc-subtitle" id="proc-status">Establishing encrypted channel…</p>
+
+    <!-- Fake hash stream terminal -->
+    <div class="proc-terminal" aria-hidden="true" id="proc-terminal">
+      <div class="proc-terminal-header">
+        <span class="proc-dot proc-dot--red"></span>
+        <span class="proc-dot proc-dot--yellow"></span>
+        <span class="proc-dot proc-dot--green"></span>
+        <span class="proc-terminal-title">msta-secure-shell</span>
+      </div>
+      <div class="proc-terminal-body" id="proc-lines"></div>
+    </div>
+
+    <!-- Dual progress bars -->
+    <div class="proc-bars">
+      <div class="proc-bar-row">
+        <span class="proc-bar-label">AUTH</span>
+        <div class="proc-bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Authentication progress">
+          <div class="proc-bar-fill proc-bar-fill--green" id="proc-bar-auth"></div>
+        </div>
+        <span class="proc-bar-pct" id="proc-pct-auth">0%</span>
+      </div>
+      <div class="proc-bar-row">
+        <span class="proc-bar-label">SYNC</span>
+        <div class="proc-bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Sync progress">
+          <div class="proc-bar-fill proc-bar-fill--cyan" id="proc-bar-sync"></div>
+        </div>
+        <span class="proc-bar-pct" id="proc-pct-sync">0%</span>
+      </div>
+    </div>
+
+    <p class="proc-disclaimer" aria-hidden="true">
+      ⚠ Visual simulation only — no real encryption in progress
+    </p>
+  </div>
+
+  {% else %}
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       STANDARD LOADER — shown during normal fast responses
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="proc-card proc-card--standard" id="proc-card">
+
+    <div class="std-spinner" aria-hidden="true">
+      <svg viewBox="0 0 50 50" class="std-spinner-svg">
+        <circle cx="25" cy="25" r="20" fill="none" stroke-width="4"
+                class="std-spinner-track"/>
+        <circle cx="25" cy="25" r="20" fill="none" stroke-width="4"
+                class="std-spinner-arc" stroke-dasharray="80 200" stroke-dashoffset="0"/>
+      </svg>
+    </div>
+
+    <h1 class="std-title">Loading your workspace</h1>
+    <p class="std-subtitle" id="proc-status">Almost ready…</p>
+
+    <div class="proc-bar-track std-bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Loading progress">
+      <div class="proc-bar-fill proc-bar-fill--brand" id="proc-bar-auth"></div>
+    </div>
+    <p class="std-pct" id="proc-pct-auth">0%</p>
+
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  const wrapper   = document.getElementById('proc-wrapper');
+  const MODE      = wrapper.dataset.mode;           // 'hacker' | 'standard'
+  const TOTAL_MS  = MODE === 'hacker' ? 3200 : 1800;
+
+  /* ── Destination resolution ──────────────────────────────────────────────
+     Priority: sessionStorage (set by background fetch) → data-redirect attr
+  ─────────────────────────────────────────────────────────────────────────── */
+  const storedDest = sessionStorage.getItem('proc_dest');
+  const REDIRECT   = storedDest || wrapper.dataset.redirect;
+  if (storedDest) sessionStorage.removeItem('proc_dest');
+
+  /* ── Status messages ─────────────────────────────────────────────────────── */
+  const HACKER_STATUSES = [
+    'Establishing encrypted channel…',
+    'Verifying identity tokens…',
+    'Resolving session keys…',
+    'Syncing workspace state…',
+    'Finalising handshake…',
+    'Access granted.',
+  ];
+
+  const STD_STATUSES = [
+    'Checking credentials…',
+    'Loading your data…',
+    'Almost ready…',
+  ];
+
+  const STATUSES = MODE === 'hacker' ? HACKER_STATUSES : STD_STATUSES;
+
+  /* ── Hacker panel: hash stream ───────────────────────────────────────────── */
+  let hashInterval = null;
+
+  if (MODE === 'hacker') {
+    const linesEl  = document.getElementById('proc-lines');
+    const MAX_LINES = 10;
+    const HEX = '0123456789abcdef';
+    const PREFIXES = ['sha256', 'md5', 'blake2b', 'aes-256', 'rsa-4096', 'hmac'];
+    const CMDS     = ['VERIFY', 'ENCRYPT', 'SIGN', 'HASH', 'SYNC', 'BIND'];
+
+    function randHex(n) {
+      return Array.from({length: n}, () => HEX[Math.random() * 16 | 0]).join('');
+    }
+
+    function addLine() {
+      const cmd    = CMDS[Math.random() * CMDS.length | 0];
+      const prefix = PREFIXES[Math.random() * PREFIXES.length | 0];
+      const line   = document.createElement('div');
+      line.className = 'proc-line';
+
+      // Vary line colour for visual interest
+      const colours = ['#00ff88', '#00d4ff', '#a8ff78', '#78ffd6'];
+      line.style.color = colours[Math.random() * colours.length | 0];
+      line.textContent = `[${randHex(8)}] ${cmd} ${prefix}:${randHex(64)}`;
+
+      linesEl.appendChild(line);
+      if (linesEl.children.length > MAX_LINES) linesEl.removeChild(linesEl.firstChild);
+    }
+
+    hashInterval = setInterval(addLine, 70);
+  }
+
+  /* ── Progress animation ──────────────────────────────────────────────────── */
+  const barAuth   = document.getElementById('proc-bar-auth');
+  const barSync   = document.getElementById('proc-bar-sync');   // null in standard mode
+  const pctAuth   = document.getElementById('proc-pct-auth');
+  const pctSync   = document.getElementById('proc-pct-sync');   // null in standard mode
+  const statusEl  = document.getElementById('proc-status');
+
+  const startTime = performance.now();
+
+  function easeInOut(t) {
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  }
+
+  function tick(now) {
+    const elapsed  = now - startTime;
+    const raw      = Math.min(elapsed / TOTAL_MS, 1);
+    const progress = easeInOut(raw);
+    const pctVal   = Math.round(progress * 100);
+
+    // Auth bar
+    if (barAuth)  barAuth.style.width  = pctVal + '%';
+    if (pctAuth)  pctAuth.textContent  = pctVal + '%';
+    if (barAuth)  barAuth.closest('[role=progressbar]').setAttribute('aria-valuenow', pctVal);
+
+    // Sync bar (hacker mode only) — slightly offset
+    if (barSync) {
+      const syncPct = Math.round(Math.min(progress * 1.15, 1) * 100);
+      barSync.style.width = syncPct + '%';
+      if (pctSync) pctSync.textContent = syncPct + '%';
+      barSync.closest('[role=progressbar]').setAttribute('aria-valuenow', syncPct);
+    }
+
+    // Status message cycling
+    const idx = Math.min(Math.floor(raw * STATUSES.length), STATUSES.length - 1);
+    if (statusEl) statusEl.textContent = STATUSES[idx];
+
+    if (raw < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      if (hashInterval) clearInterval(hashInterval);
+      // Brief pause, then redirect
+      setTimeout(() => { window.location.href = REDIRECT; }, 400);
+    }
+  }
+
+  requestAnimationFrame(tick);
+})();
+</script>
+{% endblock %}

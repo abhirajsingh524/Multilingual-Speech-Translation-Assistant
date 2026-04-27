@@ -1,11 +1,12 @@
 """
-History blueprint — /history, /history/delete/<id>, /history/clear
-Uses in-memory history store instead of MongoDB.
+routes/history.py — /history, /history/delete/<id>, /history/clear
+MongoDB primary, JSON cache fallback via history_store.
 """
 from flask import Blueprint, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 
-from services.history_store import get_entries, delete_entry, clear_entries
+from services.history_store import get_entries, delete_entry as delete_entry_svc, clear_entries
+from config.db import is_connected
 
 history_bp = Blueprint("history", __name__)
 
@@ -13,15 +14,17 @@ history_bp = Blueprint("history", __name__)
 @history_bp.route("/history")
 @login_required
 def history():
-    # ── In-memory lookup (no MongoDB) ─────────────────────────────────────
+    if not is_connected():
+        flash("Database temporarily unavailable — showing offline history.", "warning")
+
     entries = get_entries(current_user.email, limit=100)
     return render_template("history.html", entries=entries)
 
 
 @history_bp.route("/history/delete/<entry_id>", methods=["POST"])
 @login_required
-def delete_entry_route(entry_id: str):
-    deleted = delete_entry(current_user.email, entry_id)
+def delete_entry(entry_id: str):
+    deleted = delete_entry_svc(current_user.email, entry_id)
     flash("Entry deleted." if deleted else "Entry not found.", "info")
     return redirect(url_for("history.history"))
 

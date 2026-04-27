@@ -12,9 +12,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}"> -->
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+
+  <!-- Scroll progress bar — width driven by --scroll-progress CSS var (set by JS) -->
+  <div class="scroll-progress-bar" role="progressbar" aria-hidden="true"></div>
 
   <!-- Skip to main content (keyboard accessibility) -->
   <a href="#main-content" class="sr-only" style="position:fixed;top:8px;left:8px;z-index:9999;padding:8px 16px;background:var(--brand-500);color:#fff;border-radius:var(--radius-md);font-weight:600;font-size:.875rem;text-decoration:none;opacity:0;pointer-events:none;transition:opacity .15s" onfocus="this.style.opacity='1';this.style.pointerEvents='all'" onblur="this.style.opacity='0';this.style.pointerEvents='none'">
@@ -65,10 +69,12 @@
         </li>
       {% else %}
         <li>
-          <a href="{{ url_for('auth.login') }}">Sign in</a>
-        </li>
-        <li>
-          <a href="{{ url_for('auth.signup') }}">Sign up</a>
+          <a href="{{ url_for('auth.myspace') }}"
+             class="nav-myspace {% if request.endpoint in ['auth.login','auth.signup','auth.myspace'] %}active{% endif %}"
+             aria-label="Sign in or create account">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            My Space
+          </a>
         </li>
       {% endif %}
       <li>

@@ -1,18 +1,20 @@
 """
 MSTA — Multilingual Speech Translation Assistant
-In-memory mode: no MongoDB, no external database required.
+MongoDB primary, in-memory/cache fallback.
+Google OAuth via Authlib.
 """
 import os
+import time
 import logging
-from flask import Flask
+from flask import Flask, g
 from flask_login import LoginManager
 from dotenv import load_dotenv
 
-# ── MongoDB imports REMOVED ───────────────────────────────────────────────────
-# from flask_pymongo import PyMongo   # <-- disabled
-
 from services.auth_service import User, get_user_by_id
 from services.cleanup import start_cleanup_scheduler
+from services.oauth_service import init_oauth
+from services.load_monitor import record_response
+from config.db import init_db, is_connected
 
 load_dotenv()
 
@@ -26,36 +28,56 @@ def create_app() -> Flask:
     app = Flask(__name__)
 
     # ── Config ────────────────────────────────────────────────────────────────
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "msta-temp-secret-key-2026")
-    app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_CONTENT_LENGTH", 26214400))  # 25 MB
+    app.config["SECRET_KEY"]          = os.getenv("SECRET_KEY", "msta-temp-secret-key-2026")
+    app.config["MAX_CONTENT_LENGTH"]  = int(os.getenv("MAX_CONTENT_LENGTH", 26214400))
 
-    # FIX: store UPLOAD_FOLDER as an absolute path anchored to this file's
-    # directory so it resolves correctly regardless of the working directory
-    # Flask is launched from (critical on Windows).
+    # Google OAuth credentials (set in .env)
+    app.config["GOOGLE_CLIENT_ID"]     = os.getenv("GOOGLE_CLIENT_ID", "")
+    app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
     _base_dir = os.path.dirname(os.path.abspath(__file__))
     app.config["UPLOAD_FOLDER"] = os.path.join(_base_dir, "static", "uploads", "audio")
     app.config["OUTPUT_FOLDER"] = os.path.join(_base_dir, "static", "outputs", "speech")
 
-    # ── MongoDB config REMOVED ────────────────────────────────────────────────
-    # app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/msta_db")
-    # mongo.init_app(app)
-
-    # ── Ensure upload/output directories exist ────────────────────────────────
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     os.makedirs(app.config["OUTPUT_FOLDER"], exist_ok=True)
 
+    # ── MongoDB ───────────────────────────────────────────────────────────────
+    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+    init_db(uri=mongo_uri, db_name="translator_app")
+
+    if is_connected():
+        logger.info("Running with MongoDB storage.")
+    else:
+        logger.warning("MongoDB offline — using in-memory + JSON cache fallback.")
+
+    # ── Google OAuth ──────────────────────────────────────────────────────────
+    init_oauth(app)
+
+    # ── Request timing hooks (feeds load_monitor) ────────────────────────────
+    @app.before_request
+    def _start_timer():
+        g._req_start = time.monotonic()
+
+    @app.after_request
+    def _record_timing(response):
+        start = getattr(g, '_req_start', None)
+        if start is not None:
+            record_response(time.monotonic() - start)
+        return response
+
     # ── Flask-Login ───────────────────────────────────────────────────────────
     login_manager.init_app(app)
-    login_manager.login_view = "auth.login"
-    login_manager.login_message = "Please log in to access this page."
+    login_manager.login_view         = "auth.login"
+    login_manager.login_message      = "Please sign in to access this page."
     login_manager.login_message_category = "info"
 
     @login_manager.user_loader
     def load_user(user_id: str):
-        doc = get_user_by_id(user_id)          # in-memory lookup
+        doc = get_user_by_id(user_id)
         return User(doc) if doc else None
 
-    # ── Register blueprints ───────────────────────────────────────────────────
+    # ── Blueprints ────────────────────────────────────────────────────────────
     from routes.auth import auth_bp
     from routes.main import main_bp
     from routes.translate import translate_bp
@@ -66,16 +88,18 @@ def create_app() -> Flask:
     app.register_blueprint(translate_bp)
     app.register_blueprint(history_bp)
 
-    # ── MongoDB index creation REMOVED ────────────────────────────────────────
-    # with app.app_context():
-    #     mongo.db.users.create_index("email", unique=True)
-    #     mongo.db.history.create_index([("user_id", 1), ("timestamp", -1)])
-
     # ── Background audio cleanup ──────────────────────────────────────────────
+    # Guard: only start the scheduler in the actual worker process.
+    # Werkzeug's debug reloader spawns a parent monitor + a child worker.
+    # APScheduler started in the parent holds a socket that becomes invalid
+    # after the child restarts, causing WinError 10038 on Windows.
+    # WERKZEUG_RUN_MAIN is set to "true" only in the child (real) process.
     max_age = int(os.getenv("FILE_CLEANUP_HOURS", 24))
-    start_cleanup_scheduler(app.config["UPLOAD_FOLDER"], max_age)
+    _in_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    _running_directly  = not app.debug  # production / gunicorn — always start
+    if _in_reloader_child or _running_directly:
+        start_cleanup_scheduler(app.config["UPLOAD_FOLDER"], max_age)
 
-    logger.info("MSTA started in in-memory mode (no database).")
     return app
 
 
