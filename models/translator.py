@@ -32,12 +32,31 @@ cache = {}
 
 # ------------------ QUANTIZATION ------------------
 def quantize_model(model):
+    """
+    Apply dynamic quantization only on supported platforms.
+    macOS often lacks the required quantization backend, so we skip it there.
+    """
     if DEVICE.type == "cpu":
-        model = torch.quantization.quantize_dynamic(
-            model,
-            {torch.nn.Linear},
-            dtype=torch.qint8
-        )
+        try:
+            # Check if quantization backend is available
+            import platform
+            system = platform.system()
+            
+            # Skip quantization on macOS to avoid NoQEngine error
+            if system == "Darwin":
+                print(f"Skipping quantization on macOS (not supported)")
+                return model
+            
+            model = torch.quantization.quantize_dynamic(
+                model,
+                {torch.nn.Linear},
+                dtype=torch.qint8
+            )
+            print("Model quantized successfully")
+        except Exception as e:
+            print(f"Quantization failed, using original model: {e}")
+            # Return original model if quantization fails
+            pass
     return model
 
 
@@ -154,15 +173,27 @@ def translate_marian(text, src, tgt):
 # ------------------ NLLB ------------------
 NLLB_MODEL = "facebook/nllb-200-distilled-600M"
 
-print("Loading NLLB (quantized)...")
+# Lazy loading cache for NLLB
+nllb_cache = {}
 
-nllb_tokenizer = AutoTokenizer.from_pretrained(NLLB_MODEL)
-nllb_model = AutoModelForSeq2SeqLM.from_pretrained(NLLB_MODEL)
-
-nllb_model = quantize_model(nllb_model)
-
-nllb_model.to(DEVICE)
-nllb_model.eval()
+def load_nllb():
+    """Load NLLB model lazily (only when first needed)"""
+    if "model" not in nllb_cache:
+        print("Loading NLLB (quantized)...")
+        
+        tokenizer = AutoTokenizer.from_pretrained(NLLB_MODEL)
+        model = AutoModelForSeq2SeqLM.from_pretrained(NLLB_MODEL)
+        
+        model = quantize_model(model)
+        model.to(DEVICE)
+        model.eval()
+        
+        nllb_cache["tokenizer"] = tokenizer
+        nllb_cache["model"] = model
+        
+        print("NLLB model loaded successfully!")
+    
+    return nllb_cache["tokenizer"], nllb_cache["model"]
 
 LANG_CODE_MAP = {
     # Core
@@ -248,6 +279,9 @@ def translate_nllb(text, src, tgt):
 
     if not src_code or not tgt_code:
         return "Language not supported"
+
+    # Load NLLB model lazily
+    nllb_tokenizer, nllb_model = load_nllb()
 
     inputs = nllb_tokenizer(text, return_tensors="pt").to(DEVICE)
 
