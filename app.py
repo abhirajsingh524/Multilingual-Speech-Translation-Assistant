@@ -1,7 +1,6 @@
 """
 MSTA — Multilingual Speech Translation Assistant
-MongoDB primary, in-memory/cache fallback.
-Google OAuth via Authlib.
+Memory-optimised for Render free tier (≤512 MB RAM).
 """
 import os
 import time
@@ -18,6 +17,7 @@ from config.db import init_db, is_connected
 
 load_dotenv()
 
+# Production: INFO only — DEBUG logging generates large string objects
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -28,10 +28,10 @@ def create_app() -> Flask:
     app = Flask(__name__)
 
     # ── Config ────────────────────────────────────────────────────────────────
-    app.config["SECRET_KEY"]          = os.getenv("SECRET_KEY", "msta-temp-secret-key-2026")
-    app.config["MAX_CONTENT_LENGTH"]  = int(os.getenv("MAX_CONTENT_LENGTH", 26214400))
+    app.config["SECRET_KEY"]         = os.getenv("SECRET_KEY", "msta-temp-secret-key-2026")
+    # Limit uploads to 10 MB — large files spike RAM during buffering
+    app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_CONTENT_LENGTH", 10_485_760))
 
-    # Google OAuth credentials (set in .env)
     app.config["GOOGLE_CLIENT_ID"]     = os.getenv("GOOGLE_CLIENT_ID", "")
     app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET", "")
 
@@ -54,22 +54,22 @@ def create_app() -> Flask:
     # ── Google OAuth ──────────────────────────────────────────────────────────
     init_oauth(app)
 
-    # ── Request timing hooks (feeds load_monitor) ────────────────────────────
+    # ── Request timing ────────────────────────────────────────────────────────
     @app.before_request
     def _start_timer():
         g._req_start = time.monotonic()
 
     @app.after_request
     def _record_timing(response):
-        start = getattr(g, '_req_start', None)
+        start = getattr(g, "_req_start", None)
         if start is not None:
             record_response(time.monotonic() - start)
         return response
 
     # ── Flask-Login ───────────────────────────────────────────────────────────
     login_manager.init_app(app)
-    login_manager.login_view         = "auth.login"
-    login_manager.login_message      = "Please sign in to access this page."
+    login_manager.login_view             = "auth.login"
+    login_manager.login_message          = "Please sign in to access this page."
     login_manager.login_message_category = "info"
 
     @login_manager.user_loader
@@ -78,10 +78,10 @@ def create_app() -> Flask:
         return User(doc) if doc else None
 
     # ── Blueprints ────────────────────────────────────────────────────────────
-    from routes.auth import auth_bp
-    from routes.main import main_bp
+    from routes.auth     import auth_bp
+    from routes.main     import main_bp
     from routes.translate import translate_bp
-    from routes.history import history_bp
+    from routes.history  import history_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -89,14 +89,9 @@ def create_app() -> Flask:
     app.register_blueprint(history_bp)
 
     # ── Background audio cleanup ──────────────────────────────────────────────
-    # Guard: only start the scheduler in the actual worker process.
-    # Werkzeug's debug reloader spawns a parent monitor + a child worker.
-    # APScheduler started in the parent holds a socket that becomes invalid
-    # after the child restarts, causing WinError 10038 on Windows.
-    # WERKZEUG_RUN_MAIN is set to "true" only in the child (real) process.
     max_age = int(os.getenv("FILE_CLEANUP_HOURS", 24))
     _in_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
-    _running_directly  = not app.debug  # production / gunicorn — always start
+    _running_directly  = not app.debug
     if _in_reloader_child or _running_directly:
         start_cleanup_scheduler(app.config["UPLOAD_FOLDER"], max_age)
 
@@ -106,4 +101,5 @@ def create_app() -> Flask:
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True, port=10000)
+    # Never run with debug=True in production — it doubles memory via reloader
+    app.run(debug=False, port=10000)

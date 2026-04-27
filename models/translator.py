@@ -1,76 +1,32 @@
-import torch
+"""
+models/translator.py
+Translation pipeline — memory-optimised for ≤512 MB environments.
+
+Priority per request:
+  1. Groq LLaMA API        (zero local RAM — preferred)
+  2. Marian MT (local)     (≈300 MB per model, loaded + unloaded per request)
+  3. NLLB-distilled-600M   (≈1.2 GB — last resort, unloaded immediately after use)
+
+Key memory rules:
+  - No model is kept in a global cache between requests.
+  - Every local model is deleted and gc.collect() called after use.
+  - torch.set_num_threads(1) to avoid spawning extra threads.
+  - Translation result cache is capped at 512 entries (strings only, no tensors).
+"""
 import re
+import gc
+import os
 import logging
-from functools import lru_cache
-from transformers import (
-    MarianMTModel,
-    MarianTokenizer,
-    AutoTokenizer,
-    AutoModelForSeq2SeqLM
-)
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
-# ------------------ DEVICE ------------------
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.set_num_threads(4)
-#--- name----
-# Languages that use non-Latin scripts — name extraction via ASCII regex
-# is meaningless for these, and placeholder injection corrupts the output
-# because the translation model either translates the placeholder literally
-# or drops it, leaving raw __NAME0__ tokens in the final string.
-_NON_LATIN_LANGS = {
-    "hi", "bn", "ur", "ta", "te", "mr", "gu", "pa", "ml", "kn",
-    "ne", "si", "as", "or", "sd", "ks", "kok", "mai", "bho", "sat",
-    "doi", "mni",                          # Indian scripts
-    "ar", "fa", "he",                      # Arabic / Hebrew
-    "zh", "ja", "ko",                      # CJK
-    "th", "my", "km", "lo",               # SE Asian scripts
-    "am",                                  # Ethiopic
-    "ru", "uk",                            # Cyrillic (capitals differ from Latin)
-    "el",                                  # Greek
-}
-
-
-def _should_preserve_names(src: str, tgt: str) -> bool:
-    """
-    Return True only when both languages use Latin script and name
-    preservation is safe.  For any non-Latin pair we skip substitution
-    entirely to avoid __NAMEn__ token corruption in the output.
-    """
-    return src not in _NON_LATIN_LANGS and tgt not in _NON_LATIN_LANGS
-
-
-def extract_names(text):
-    # Detect words starting with capital letter (simple approach)
-    return re.findall(r'\b[A-Z][a-z]+\b', text)
-
-
-def replace_names(text, names):
-    for i, name in enumerate(names):
-        text = text.replace(name, f"__NAME{i}__")
-    return text
-
-
-def restore_names(text, names):
-    for i, name in enumerate(names):
-        text = text.replace(f"__NAME{i}__", name)
-    # Safety net: strip any leftover placeholder tokens that the model
-    # failed to preserve, so they never appear in the final output.
-    text = re.sub(r'__NAME\d+__', '', text)
-    text = re.sub(r'\s{2,}', ' ', text).strip()
-    return text
-
-# ------------------ CACHE ------------------
-# Bounded LRU cache — evicts oldest entries beyond MAX_CACHE_SIZE to prevent
-# unbounded memory growth in long-running server sessions.
-_MAX_CACHE_SIZE = 2048
+# ── Result cache (strings only — no tensors) ─────────────────────────────────
+_MAX_CACHE = 512
 
 class _LRUCache:
-    """Simple thread-unsafe LRU cache backed by an OrderedDict."""
     def __init__(self, maxsize: int):
-        from collections import OrderedDict
-        self._store: "OrderedDict[str, str]" = OrderedDict()
+        self._store: OrderedDict = OrderedDict()
         self._maxsize = maxsize
 
     def get(self, key: str):
@@ -84,350 +40,259 @@ class _LRUCache:
             self._store.move_to_end(key)
         self._store[key] = value
         if len(self._store) > self._maxsize:
-            self._store.popitem(last=False)   # evict oldest
+            self._store.popitem(last=False)
 
-cache = _LRUCache(_MAX_CACHE_SIZE)
+_cache = _LRUCache(_MAX_CACHE)
 
-# ------------------ QUANTIZATION ------------------
-def quantize_model(model):
-    """
-    Apply dynamic quantization only on supported platforms.
-    macOS often lacks the required quantization backend, so we skip it there.
-    """
-    if DEVICE.type == "cpu":
-        try:
-            # Check if quantization backend is available
-            import platform
-            system = platform.system()
-            
-            # Skip quantization on macOS to avoid NoQEngine error
-            if system == "Darwin":
-                print(f"Skipping quantization on macOS (not supported)")
-                return model
-            
-            model = torch.quantization.quantize_dynamic(
-                model,
-                {torch.nn.Linear},
-                dtype=torch.qint8
-            )
-            print("Model quantized successfully")
-        except Exception as e:
-            print(f"Quantization failed, using original model: {e}")
-            # Return original model if quantization fails
-            pass
-    return model
+# ── Non-Latin script set (name preservation unsafe) ──────────────────────────
+_NON_LATIN = {
+    "hi","bn","ur","ta","te","mr","gu","pa","ml","kn","ne","si",
+    "as","or","sd","ks","kok","mai","bho","sat","doi","mni",
+    "ar","fa","he","zh","ja","ko","th","my","km","lo","am","ru","uk","el",
+}
 
+# ── NLLB language code map ────────────────────────────────────────────────────
+_NLLB_CODES = {
+    "en":"eng_Latn","hi":"hin_Deva","fr":"fra_Latn","de":"deu_Latn",
+    "es":"spa_Latn","ru":"rus_Cyrl","zh":"zho_Hans","ar":"arb_Arab",
+    "bn":"ben_Beng","ur":"urd_Arab","ta":"tam_Taml","te":"tel_Telu",
+    "mr":"mar_Deva","gu":"guj_Gujr","pa":"pan_Guru","as":"asm_Beng",
+    "or":"ory_Orya","ml":"mal_Mlym","kn":"kan_Knda","sd":"snd_Arab",
+    "ne":"npi_Deva","si":"sin_Sinh","ks":"kas_Arab","kok":"gom_Deva",
+    "mai":"mai_Deva","bho":"bho_Deva","sat":"sat_Olck","doi":"doi_Deva",
+    "mni":"mni_Beng","it":"ita_Latn","nl":"nld_Latn","pl":"pol_Latn",
+    "sv":"swe_Latn","fi":"fin_Latn","da":"dan_Latn","no":"nob_Latn",
+    "cs":"ces_Latn","el":"ell_Grek","uk":"ukr_Cyrl","hu":"hun_Latn",
+    "ro":"ron_Latn","pt":"por_Latn","ja":"jpn_Jpan","ko":"kor_Hang",
+    "th":"tha_Thai","vi":"vie_Latn","id":"ind_Latn","ms":"msa_Latn",
+    "km":"khm_Khmr","lo":"lao_Laoo","my":"mya_Mymr","fa":"pes_Arab",
+    "he":"heb_Hebr","sw":"swh_Latn","yo":"yor_Latn","ig":"ibo_Latn",
+    "ha":"hau_Latn","am":"amh_Ethi","zu":"zul_Latn","xh":"xho_Latn",
+    "tr":"tur_Latn",
+}
 
-# ------------------ TEXT CLEANING ------------------
-def clean_text(text):
+# ── Marian model names ────────────────────────────────────────────────────────
+_MARIAN_MODELS = {
+    ("en","hi"):"Helsinki-NLP/opus-mt-en-hi", ("hi","en"):"Helsinki-NLP/opus-mt-hi-en",
+    ("en","fr"):"Helsinki-NLP/opus-mt-en-fr", ("fr","en"):"Helsinki-NLP/opus-mt-fr-en",
+    ("en","de"):"Helsinki-NLP/opus-mt-en-de", ("de","en"):"Helsinki-NLP/opus-mt-de-en",
+    ("en","es"):"Helsinki-NLP/opus-mt-en-es", ("es","en"):"Helsinki-NLP/opus-mt-es-en",
+    ("en","it"):"Helsinki-NLP/opus-mt-en-it", ("it","en"):"Helsinki-NLP/opus-mt-it-en",
+    ("en","nl"):"Helsinki-NLP/opus-mt-en-nl", ("nl","en"):"Helsinki-NLP/opus-mt-nl-en",
+    ("en","pt"):"Helsinki-NLP/opus-mt-en-pt", ("pt","en"):"Helsinki-NLP/opus-mt-pt-en",
+    ("en","ru"):"Helsinki-NLP/opus-mt-en-ru", ("ru","en"):"Helsinki-NLP/opus-mt-ru-en",
+    ("en","pl"):"Helsinki-NLP/opus-mt-en-pl", ("pl","en"):"Helsinki-NLP/opus-mt-pl-en",
+    ("en","zh"):"Helsinki-NLP/opus-mt-en-zh", ("zh","en"):"Helsinki-NLP/opus-mt-zh-en",
+    ("en","ja"):"Helsinki-NLP/opus-mt-en-ja", ("ja","en"):"Helsinki-NLP/opus-mt-ja-en",
+    ("en","ko"):"Helsinki-NLP/opus-mt-en-ko", ("ko","en"):"Helsinki-NLP/opus-mt-ko-en",
+    ("en","vi"):"Helsinki-NLP/opus-mt-en-vi", ("vi","en"):"Helsinki-NLP/opus-mt-vi-en",
+    ("en","id"):"Helsinki-NLP/opus-mt-en-id", ("id","en"):"Helsinki-NLP/opus-mt-id-en",
+    ("en","ar"):"Helsinki-NLP/opus-mt-en-ar", ("ar","en"):"Helsinki-NLP/opus-mt-ar-en",
+    ("en","fa"):"Helsinki-NLP/opus-mt-en-fa", ("fa","en"):"Helsinki-NLP/opus-mt-fa-en",
+    ("en","he"):"Helsinki-NLP/opus-mt-en-he", ("he","en"):"Helsinki-NLP/opus-mt-he-en",
+    ("en","ur"):"Helsinki-NLP/opus-mt-en-ur", ("ur","en"):"Helsinki-NLP/opus-mt-ur-en",
+    ("en","ta"):"Helsinki-NLP/opus-mt-en-ta", ("ta","en"):"Helsinki-NLP/opus-mt-ta-en",
+    ("en","te"):"Helsinki-NLP/opus-mt-en-te", ("te","en"):"Helsinki-NLP/opus-mt-te-en",
+    ("en","mr"):"Helsinki-NLP/opus-mt-en-mr", ("mr","en"):"Helsinki-NLP/opus-mt-mr-en",
+    ("en","bn"):"Helsinki-NLP/opus-mt-en-bn", ("bn","en"):"Helsinki-NLP/opus-mt-bn-en",
+    ("en","gu"):"Helsinki-NLP/opus-mt-en-gu", ("gu","en"):"Helsinki-NLP/opus-mt-gu-en",
+}
+
+# ── Text helpers ──────────────────────────────────────────────────────────────
+
+def _clean(text: str) -> str:
     text = re.sub(r"\s+([?.!,])", r"\1", text)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    return re.sub(r"\s+", " ", text).strip()
 
-
-# ------------------ SENTENCE SPLIT ------------------
-def split_sentences(text):
+def _split(text: str):
     return re.split(r'(?<=[.!?]) +', text)
 
+def _extract_names(text: str):
+    return re.findall(r'\b[A-Z][a-z]+\b', text)
 
-# ------------------ MARIAN ------------------
-MARIAN_MODELS = {
-    # English ↔ Indian
-    ("en", "hi"): "Helsinki-NLP/opus-mt-en-hi",
-    ("hi", "en"): "Helsinki-NLP/opus-mt-hi-en",
-    ("en", "bn"): "Helsinki-NLP/opus-mt-en-bn",
-    ("bn", "en"): "Helsinki-NLP/opus-mt-bn-en",
-    ("en", "ur"): "Helsinki-NLP/opus-mt-en-ur",
-    ("ur", "en"): "Helsinki-NLP/opus-mt-ur-en",
-    ("en", "ta"): "Helsinki-NLP/opus-mt-en-ta",
-    ("ta", "en"): "Helsinki-NLP/opus-mt-ta-en",
-    ("en", "te"): "Helsinki-NLP/opus-mt-en-te",
-    ("te", "en"): "Helsinki-NLP/opus-mt-te-en",
-    ("en", "mr"): "Helsinki-NLP/opus-mt-en-mr",
-    ("mr", "en"): "Helsinki-NLP/opus-mt-mr-en",
-    ("en", "gu"): "Helsinki-NLP/opus-mt-en-gu",
-    ("gu", "en"): "Helsinki-NLP/opus-mt-gu-en",
+def _replace_names(text: str, names) -> str:
+    for i, n in enumerate(names):
+        text = text.replace(n, f"__N{i}__")
+    return text
 
-    # English ↔ European
-    ("en", "fr"): "Helsinki-NLP/opus-mt-en-fr",
-    ("fr", "en"): "Helsinki-NLP/opus-mt-fr-en",
-    ("en", "de"): "Helsinki-NLP/opus-mt-en-de",
-    ("de", "en"): "Helsinki-NLP/opus-mt-de-en",
-    ("en", "es"): "Helsinki-NLP/opus-mt-en-es",
-    ("es", "en"): "Helsinki-NLP/opus-mt-es-en",
-    ("en", "it"): "Helsinki-NLP/opus-mt-en-it",
-    ("it", "en"): "Helsinki-NLP/opus-mt-it-en",
-    ("en", "nl"): "Helsinki-NLP/opus-mt-en-nl",
-    ("nl", "en"): "Helsinki-NLP/opus-mt-nl-en",
-    ("en", "pt"): "Helsinki-NLP/opus-mt-en-pt",
-    ("pt", "en"): "Helsinki-NLP/opus-mt-pt-en",
-    ("en", "ru"): "Helsinki-NLP/opus-mt-en-ru",
-    ("ru", "en"): "Helsinki-NLP/opus-mt-ru-en",
-    ("en", "pl"): "Helsinki-NLP/opus-mt-en-pl",
-    ("pl", "en"): "Helsinki-NLP/opus-mt-pl-en",
+def _restore_names(text: str, names) -> str:
+    for i, n in enumerate(names):
+        text = text.replace(f"__N{i}__", n)
+    text = re.sub(r'__N\d+__', '', text)
+    return re.sub(r'\s{2,}', ' ', text).strip()
 
-    # English ↔ Asian
-    ("en", "zh"): "Helsinki-NLP/opus-mt-en-zh",
-    ("zh", "en"): "Helsinki-NLP/opus-mt-zh-en",
-    ("en", "ja"): "Helsinki-NLP/opus-mt-en-ja",
-    ("ja", "en"): "Helsinki-NLP/opus-mt-ja-en",
-    ("en", "ko"): "Helsinki-NLP/opus-mt-en-ko",
-    ("ko", "en"): "Helsinki-NLP/opus-mt-ko-en",
-    ("en", "vi"): "Helsinki-NLP/opus-mt-en-vi",
-    ("vi", "en"): "Helsinki-NLP/opus-mt-vi-en",
-    ("en", "id"): "Helsinki-NLP/opus-mt-en-id",
-    ("id", "en"): "Helsinki-NLP/opus-mt-id-en",
+# ── Groq translation (API — no local RAM) ────────────────────────────────────
 
-    # English ↔ Middle East
-    ("en", "ar"): "Helsinki-NLP/opus-mt-en-ar",
-    ("ar", "en"): "Helsinki-NLP/opus-mt-ar-en",
-    ("en", "fa"): "Helsinki-NLP/opus-mt-en-fa",
-    ("fa", "en"): "Helsinki-NLP/opus-mt-fa-en",
-    ("en", "he"): "Helsinki-NLP/opus-mt-en-he",
-    ("he", "en"): "Helsinki-NLP/opus-mt-he-en",
+_GROQ_LANG_MAP = {
+    "en":"English","hi":"Hindi","fr":"French","de":"German","es":"Spanish",
+    "zh":"Chinese","ar":"Arabic","ru":"Russian","it":"Italian","pt":"Portuguese",
+    "ja":"Japanese","ko":"Korean","bn":"Bengali","ur":"Urdu","ta":"Tamil",
+    "te":"Telugu","mr":"Marathi","gu":"Gujarati","pa":"Punjabi","nl":"Dutch",
+    "pl":"Polish","sv":"Swedish","fi":"Finnish","da":"Danish","no":"Norwegian",
+    "cs":"Czech","el":"Greek","uk":"Ukrainian","hu":"Hungarian","ro":"Romanian",
+    "th":"Thai","vi":"Vietnamese","id":"Indonesian","ms":"Malay","fa":"Persian",
+    "he":"Hebrew","sw":"Swahili","tr":"Turkish","ne":"Nepali","si":"Sinhala",
+    "ml":"Malayalam","kn":"Kannada",
 }
 
-marian_cache = {}
+def _groq_translate(text: str, src: str, tgt: str) -> str:
+    from groq import Groq
+    client = Groq(api_key=os.getenv("GROQ_API_KEY", ""))
+    source = _GROQ_LANG_MAP.get(src, src)
+    target = _GROQ_LANG_MAP.get(tgt, tgt)
+    resp = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": "You are an expert multilingual translator. Output only the translated text."},
+            {"role": "user",   "content": f"Translate from {source} to {target}:\n{text}"},
+        ],
+        temperature=0.1,
+        max_tokens=1024,
+    )
+    return resp.choices[0].message.content.strip()
 
-def load_marian(src, tgt):
-    key = (src, tgt)
+# ── Marian local (load → use → unload) ───────────────────────────────────────
 
-    if key not in marian_cache:
-        model_name = MARIAN_MODELS[key]
+def _marian_translate(text: str, src: str, tgt: str) -> str:
+    """Load Marian model, translate one sentence, unload immediately."""
+    import torch
+    from transformers import MarianMTModel, MarianTokenizer
 
-        tokenizer = MarianTokenizer.from_pretrained(model_name)
-        model = MarianMTModel.from_pretrained(model_name)
+    torch.set_num_threads(1)
+    model_name = _MARIAN_MODELS[(src, tgt)]
+    logger.info("[Marian] Loading %s (will unload after use)", model_name)
 
-        model = quantize_model(model)
+    tokenizer = MarianTokenizer.from_pretrained(model_name)
+    model     = MarianMTModel.from_pretrained(model_name)
+    model.eval()
 
-        model.to(DEVICE)
-        model.eval()
+    try:
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        with torch.inference_mode():
+            out = model.generate(**inputs, max_length=256, num_beams=2)
+        result = tokenizer.decode(out[0], skip_special_tokens=True)
+    finally:
+        del model, tokenizer, inputs
+        gc.collect()
+        logger.info("[Marian] Model unloaded.")
 
-        marian_cache[key] = (tokenizer, model)
+    return result
 
-    return marian_cache[key]
+# ── NLLB local fallback (load → use → unload) ────────────────────────────────
 
+def _nllb_translate(text: str, src: str, tgt: str) -> str:
+    """Load NLLB-distilled-600M, translate, unload immediately."""
+    import torch
+    from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-def translate_marian(text, src, tgt):
-    tokenizer, model = load_marian(src, tgt)
-
-    inputs = tokenizer(
-        text,
-        return_tensors="pt",
-        truncation=True,
-        padding=True
-    ).to(DEVICE)
-
-    with torch.inference_mode():
-        outputs = model.generate(
-            **inputs,
-            max_length=128,
-            num_beams=2
-        )
-
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-
-# ------------------ NLLB ------------------
-NLLB_MODEL = "facebook/nllb-200-distilled-600M"
-
-# Lazy loading cache for NLLB
-nllb_cache = {}
-
-def load_nllb():
-    """Load NLLB model lazily (only when first needed)"""
-    if "model" not in nllb_cache:
-        print("Loading NLLB (quantized)...")
-        
-        tokenizer = AutoTokenizer.from_pretrained(NLLB_MODEL)
-        model = AutoModelForSeq2SeqLM.from_pretrained(NLLB_MODEL)
-        
-        model = quantize_model(model)
-        model.to(DEVICE)
-        model.eval()
-        
-        nllb_cache["tokenizer"] = tokenizer
-        nllb_cache["model"] = model
-        
-        print("NLLB model loaded successfully!")
-    
-    return nllb_cache["tokenizer"], nllb_cache["model"]
-
-LANG_CODE_MAP = {
-    # Core
-    "en": "eng_Latn",
-    "hi": "hin_Deva",
-    "fr": "fra_Latn",
-    "de": "deu_Latn",
-    "es": "spa_Latn",
-    "ru": "rus_Cyrl",
-    "zh": "zho_Hans",
-    "ar": "arb_Arab",
-
-    # Indian Languages (extended)
-    "bn": "ben_Beng",
-    "ur": "urd_Arab",
-    "ta": "tam_Taml",
-    "te": "tel_Telu",
-    "mr": "mar_Deva",
-    "gu": "guj_Gujr",
-    "pa": "pan_Guru",
-    "as": "asm_Beng",
-    "or": "ory_Orya",
-    "ml": "mal_Mlym",
-    "kn": "kan_Knda",
-    "sd": "snd_Arab",
-    "ne": "npi_Deva",
-    "si": "sin_Sinh",
-    "ks": "kas_Arab",   # Kashmiri
-    "kok": "gom_Deva",  # Konkani
-    "mai": "mai_Deva",  # Maithili
-    "bho": "bho_Deva",  # Bhojpuri
-    "sat": "sat_Olck",  # Santali
-    "doi": "doi_Deva",  # Dogri
-    "mni": "mni_Beng",  # Manipuri (Meitei)
-
-    # European
-    "it": "ita_Latn",
-    "nl": "nld_Latn",
-    "pl": "pol_Latn",
-    "sv": "swe_Latn",
-    "fi": "fin_Latn",
-    "da": "dan_Latn",
-    "no": "nob_Latn",
-    "cs": "ces_Latn",
-    "el": "ell_Grek",
-    "uk": "ukr_Cyrl",
-    "hu": "hun_Latn",
-    "ro": "ron_Latn",
-    "pt": "por_Latn",
-
-    # Asian
-    "ja": "jpn_Jpan",
-    "ko": "kor_Hang",
-    "th": "tha_Thai",
-    "vi": "vie_Latn",
-    "id": "ind_Latn",
-    "ms": "msa_Latn",
-    "km": "khm_Khmr",
-    "lo": "lao_Laoo",
-    "my": "mya_Mymr",
-
-    # Middle East
-    "fa": "pes_Arab",
-    "he": "heb_Hebr",
-
-    # African
-    "sw": "swh_Latn",
-    "yo": "yor_Latn",
-    "ig": "ibo_Latn",
-    "ha": "hau_Latn",
-    "am": "amh_Ethi",
-    "zu": "zul_Latn",
-    "xh": "xho_Latn",
-
-    # Others
-    "tr": "tur_Latn",
-}
-
-
-def translate_nllb(text, src, tgt):
-    src_code = LANG_CODE_MAP.get(src)
-    tgt_code = LANG_CODE_MAP.get(tgt)
-
+    src_code = _NLLB_CODES.get(src)
+    tgt_code = _NLLB_CODES.get(tgt)
     if not src_code or not tgt_code:
         return "Language not supported"
 
-    # Load NLLB model lazily
-    nllb_tokenizer, nllb_model = load_nllb()
+    torch.set_num_threads(1)
+    logger.info("[NLLB] Loading facebook/nllb-200-distilled-600M (will unload after use)…")
 
-    # Set the source language on the tokenizer so the encoder gets the right
-    # language token.  AutoTokenizer returns an NllbTokenizer whose src_lang
-    # attribute controls the BOS token injected during encoding.
-    nllb_tokenizer.src_lang = src_code
+    tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
+    model     = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-distilled-600M")
+    model.eval()
 
-    inputs = nllb_tokenizer(text, return_tensors="pt").to(DEVICE)
+    try:
+        tokenizer.src_lang = src_code
+        inputs = tokenizer(text, return_tensors="pt")
+        tgt_id = tokenizer.convert_tokens_to_ids(tgt_code)
+        if tgt_id == tokenizer.unk_token_id:
+            tgt_id = getattr(tokenizer, "lang_code_to_id", {}).get(tgt_code, tgt_id)
 
-    # Resolve the target-language token id via convert_tokens_to_ids —
-    # the correct API across all transformers versions.
-    # lang_code_to_id is a legacy dict that does NOT exist on every build
-    # and raises KeyError / AttributeError silently swallowed upstream.
-    tgt_token_id = nllb_tokenizer.convert_tokens_to_ids(tgt_code)
-    if tgt_token_id == nllb_tokenizer.unk_token_id:
-        # Fallback: try the lang_code_to_id dict if it exists (older builds)
-        tgt_token_id = getattr(nllb_tokenizer, "lang_code_to_id", {}).get(
-            tgt_code, tgt_token_id
-        )
+        with torch.inference_mode():
+            out = model.generate(**inputs, forced_bos_token_id=tgt_id, max_length=256, num_beams=2)
+        result = tokenizer.decode(out[0], skip_special_tokens=True)
+    finally:
+        del model, tokenizer, inputs
+        gc.collect()
+        logger.info("[NLLB] Model unloaded.")
 
-    with torch.inference_mode():
-        outputs = nllb_model.generate(
-            **inputs,
-            forced_bos_token_id=tgt_token_id,
-            max_length=128,
-            num_beams=2
-        )
+    return result
 
-    return nllb_tokenizer.decode(outputs[0], skip_special_tokens=True)
+# ── Public entry point ────────────────────────────────────────────────────────
 
+def translate_text(text: str, source_lang: str = "en", target_lang: str = "hi") -> str:
+    """
+    Translate text using a 3-tier fallback pipeline:
+      1. Groq API (no local RAM)
+      2. Marian MT (local, load+unload per call)
+      3. NLLB-600M (local, load+unload per call — last resort)
 
-# ------------------ MAIN FUNCTION ------------------
-def translate_text(text, source_lang="en", target_lang="hi"):
+    Results are cached by (src, tgt, sentence) to avoid redundant API calls.
+    """
     if not text or not text.strip():
         return ""
 
-    source_lang = source_lang.lower()
-    target_lang = target_lang.lower()
+    src = source_lang.lower().strip()
+    tgt = target_lang.lower().strip()
 
-    # ------------------ NAME HANDLING ------------------
-    # Only preserve names when both languages use Latin script.
-    # For non-Latin pairs the placeholder approach corrupts the output.
-    use_name_preservation = _should_preserve_names(source_lang, target_lang)
-    names = extract_names(text) if use_name_preservation else []
+    if src == tgt:
+        return text
+
+    # Name preservation (Latin-script pairs only)
+    use_names = src not in _NON_LATIN and tgt not in _NON_LATIN
+    names = _extract_names(text) if use_names else []
     if names:
-        text = replace_names(text, names)
+        text = _replace_names(text, names)
 
-    # ------------------ CLEAN + SPLIT ------------------
-    text = clean_text(text)
-    sentences = split_sentences(text)
+    text = _clean(text)
+    sentences = _split(text)
+    translated_parts = []
 
-    translated_sentences = []
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
 
     for sentence in sentences:
-        if not sentence.strip():
+        sentence = sentence.strip()
+        if not sentence:
             continue
 
-        key = f"{source_lang}-{target_lang}-{sentence}"
+        cache_key = f"{src}|{tgt}|{sentence}"
+        cached = _cache.get(cache_key)
+        if cached is not None:
+            translated_parts.append(cached)
+            continue
 
-        if cache.get(key) is not None:
-            translated = cache.get(key)
-        else:
-            if (source_lang, target_lang) in MARIAN_MODELS:
-                try:
-                    translated = translate_marian(sentence, source_lang, target_lang)
-                except Exception as marian_err:
-                    # Model may not exist on HuggingFace Hub (e.g. en↔bn, en↔mr,
-                    # en↔gu, en↔te, en↔ta).  Fall back to NLLB silently.
-                    logger.warning(
-                        "Marian failed for (%s→%s), falling back to NLLB: %s",
-                        source_lang, target_lang, marian_err
-                    )
-                    translated = translate_nllb(sentence, source_lang, target_lang)
-            else:
-                translated = translate_nllb(sentence, source_lang, target_lang)
+        result = None
 
-            cache.set(key, translated)
+        # ── Tier 1: Groq API ─────────────────────────────────────────────────
+        if groq_key:
+            try:
+                result = _groq_translate(sentence, src, tgt)
+                logger.debug("[Translate] Groq succeeded for %s→%s", src, tgt)
+            except Exception as e:
+                logger.warning("[Translate] Groq failed (%s), trying local.", e)
 
-        translated_sentences.append(translated)
+        # ── Tier 2: Marian (if Groq failed or unavailable) ───────────────────
+        if result is None and (src, tgt) in _MARIAN_MODELS:
+            try:
+                result = _marian_translate(sentence, src, tgt)
+                logger.debug("[Translate] Marian succeeded for %s→%s", src, tgt)
+            except Exception as e:
+                logger.warning("[Translate] Marian failed (%s), trying NLLB.", e)
 
-    # ------------------ JOIN RESULT ------------------
-    result = " ".join(translated_sentences)
+        # ── Tier 3: NLLB (last resort) ────────────────────────────────────────
+        if result is None:
+            try:
+                result = _nllb_translate(sentence, src, tgt)
+                logger.debug("[Translate] NLLB succeeded for %s→%s", src, tgt)
+            except Exception as e:
+                logger.error("[Translate] All tiers failed for %s→%s: %s", src, tgt, e)
+                result = f"[Translation failed: {e}]"
 
-    # ------------------ RESTORE NAMES ------------------
+        _cache.set(cache_key, result)
+        translated_parts.append(result)
+
+    joined = " ".join(translated_parts)
+
     if names:
-        result = restore_names(result, names)
+        joined = _restore_names(joined, names)
     else:
-        # Still run the safety-net strip in case any stray tokens slipped through
-        result = re.sub(r'__NAME\d+__', '', result)
-        result = re.sub(r'\s{2,}', ' ', result).strip()
+        joined = re.sub(r'__N\d+__', '', joined)
+        joined = re.sub(r'\s{2,}', ' ', joined).strip()
 
-    return result
+    return joined

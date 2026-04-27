@@ -1,12 +1,9 @@
 """
 Translation blueprint — /translate (POST)
-Handles:
-- Text translation
-- Audio → Text → Translation (Whisper)
-- In-memory history storage
+Memory-optimised: no model globals, gc.collect() after heavy operations.
 """
-# ── imports MUST come first ───────────────────────────────────────────────────
 import os
+import gc
 import time
 import logging
 
@@ -15,7 +12,6 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from services.history_store import add_entry
-from models.groq_translator import groq_translate
 from models.translator import translate_text
 from models.speech_to_text import speech_to_text
 
@@ -114,11 +110,10 @@ def translate():
                 return redirect(url_for("main.translate_page"))
 
             # Step 3 — translate extracted text.
-            # The "speech" model_choice covers transcription only; translation
-            # always uses the local HuggingFace pipeline here.  If Groq
-            # translation is needed after STT, a separate model_choice field
-            # for the translation step should be added to the form (P2 backlog).
             translated_text = translate_text(extracted_text, source_lang, target_lang)
+
+            # Force GC after heavy STT + translation work
+            gc.collect()
 
             # Step 4 — save plain-text output file (optional, non-blocking)
             try:
@@ -152,12 +147,16 @@ def translate():
 
         try:
             if model_choice == "groq":
-                translated_text = groq_translate(text, source_lang, target_lang)
+                # Groq is now handled inside translate_text() as tier 1
+                translated_text = translate_text(text, source_lang, target_lang)
             else:
                 translated_text = translate_text(text, source_lang, target_lang)
         except Exception as e:
             logger.error("Translation error: %s", e)
             translated_text = f"Translation error: {str(e)}"
+        finally:
+            # Force garbage collection after translation to free any temp tensors
+            gc.collect()
 
     # =========================================================================
     # 💾  HISTORY  +  📤  RESULT
